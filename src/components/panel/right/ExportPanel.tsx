@@ -515,6 +515,15 @@ export default function ExportPanel({
           currentEditPath: selectedImage?.path || null,
           currentEditAdjustments: adjustments || null,
         });
+        
+        // For web single image export, trigger download from the backend /tmp path
+        if (numImages === 1) {
+          const baseUrl = import.meta.env.VITE_API_URL || '';
+          const a = document.createElement('a');
+          a.href = `${baseUrl}/api/download?path=${encodeURIComponent(outputFolderOrFile)}`;
+          // The filename is provided by Content-Disposition header
+          a.click();
+        }
       }
     } catch (error) {
       setExportState({

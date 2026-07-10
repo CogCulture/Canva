@@ -892,10 +892,65 @@ async fn serve_static_file(Query(params): Query<std::collections::HashMap<String
     Ok(response)
 }
 
+async fn handle_upload(mut multipart: axum::extract::Multipart) -> Result<axum::response::Response, String> {
+    let mut temp_path = String::new();
+    while let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
+        let file_name = field.file_name().unwrap_or("unknown").to_string();
+        let data = field.bytes().await.map_err(|e| e.to_string())?;
+        
+        let ext = std::path::Path::new(&file_name).extension().and_then(|e| e.to_str()).unwrap_or("raw");
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let path = format!("/tmp/rapidraw_upload_{}.{}", uuid, ext);
+        
+        std::fs::write(&path, data).map_err(|e| e.to_string())?;
+        temp_path = path;
+        break; // Only handle the first file
+    }
+    
+    if temp_path.is_empty() {
+        return Err("No file found in multipart upload".to_string());
+    }
+    
+    let json_res = serde_json::json!({ "path": temp_path });
+    Ok(axum::response::IntoResponse::into_response(Json(json_res)))
+}
+
+async fn handle_download(Query(params): Query<std::collections::HashMap<String, String>>) -> Result<axum::response::Response, String> {
+    let path = params.get("path").ok_or("Missing path parameter")?;
+    
+    // Basic security check: ensure it's from /tmp/ to prevent arbitrary file reading
+    if !path.starts_with("/tmp/") {
+        return Err("Invalid path".to_string());
+    }
+    
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    
+    let content_type = if path.ends_with(".dng") || path.ends_with(".raw") {
+        "image/x-adobe-dng"
+    } else if path.ends_with(".png") {
+        "image/png"
+    } else if path.ends_with(".jpg") || path.ends_with(".jpeg") {
+        "image/jpeg"
+    } else {
+        "application/octet-stream"
+    };
+    
+    let response = axum::response::Response::builder()
+        .header("Content-Type", content_type)
+        .header("Content-Disposition", format!("attachment; filename=\"{}\"", std::path::Path::new(path).file_name().unwrap_or_default().to_string_lossy()))
+        .header("Access-Control-Allow-Origin", "*")
+        .body(axum::body::Body::from(bytes))
+        .map_err(|e| e.to_string())?;
+    Ok(response)
+}
+
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/invoke", post(handle_invoke))
         .route("/api/static", get(serve_static_file))
+        .route("/api/upload", post(handle_upload))
+        .route("/api/download", get(handle_download))
         .layer(axum::extract::DefaultBodyLimit::max(100 * 1024 * 1024)) // 100MB limit for base64 images
+        .layer(tower_http::cors::CorsLayer::permissive())
         .with_state(state)
 }

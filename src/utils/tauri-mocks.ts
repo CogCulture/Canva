@@ -67,14 +67,52 @@ export function platform() {
 }
 
 export async function open(options: any) {
-  // Mock file picker dialog
   if (options && options.directory) {
-    const customPath = prompt("Enter directory path to open:");
-    return customPath;
-  } else {
-    const customPath = prompt("Enter file path to open:");
-    return customPath ? [customPath] : null;
+    alert("Folder selection is not supported in the web version. Please open individual files.");
+    return null;
   }
+  
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    
+    if (options?.filters?.length > 0) {
+      const exts = options.filters.flatMap((f: any) => f.extensions.map((e: string) => `.${e}`));
+      input.accept = exts.join(',');
+    }
+
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${baseUrl}/api/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        const data = await res.json();
+        // Return as an array like the original dialog does when multiple: false isn't explicitly handled sometimes,
+        // but ImagePicker expects a single string or an array? Let's check ImagePicker.
+        // Wait, ImagePicker says: if (typeof selected === 'string') { onImageSelect(selected) }
+        resolve(data.path);
+      } catch (err) {
+        console.error("Upload failed", err);
+        resolve(null);
+      }
+    };
+    
+    input.click();
+  });
 }
 
 export async function save(options: any) {
