@@ -1,4 +1,4 @@
-import { open } from '@tauri-apps/plugin-dialog';
+import { open } from '../../utils/tauri-mocks';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Text from './Text';

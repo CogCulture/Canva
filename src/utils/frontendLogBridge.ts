@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './tauri-mocks';
 import { Invokes } from '../components/ui/AppProperties';
 
 type FrontendLogLevel = 'debug' | 'info' | 'warn' | 'error';

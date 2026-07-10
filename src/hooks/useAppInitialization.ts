@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';

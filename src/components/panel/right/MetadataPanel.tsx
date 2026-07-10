@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../../utils/tauri-mocks';
 import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';

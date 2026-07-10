@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
-import { platform } from '@tauri-apps/plugin-os';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { platform } from '../utils/tauri-mocks';
+import { getCurrentWindow } from '../utils/tauri-mocks';
 import { Minus, Square, X } from 'lucide-react';
 
 const RestoreDownIcon = ({ size = 14, className = '' }) => (

@@ -330,3 +330,37 @@
     text-shadow: 0 0 18px rgba(255, 255, 255, 0.3);
   }
 }
+
+
+/* FontPicker Overrides to match UI and fix Z-index */
+.fpb__modal {
+  z-index: 9999 !important;
+}
+.fpb__backdrop {
+  z-index: 9998 !important;
+}
+[data-fp-theme="dark"] .fpb__modal {
+  background: #1c1c1e !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-fp-theme="dark"] .fpb__modal .fpb__accordion-item {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-fp-theme="dark"] .fpb__accordion-toggle:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+[data-fp-theme="dark"] .fpb__dropdown {
+  background-color: #2c2c2e !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+[data-fp-theme="dark"] .fpb__input {
+  background-color: #2c2c2e !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+[data-fp-theme="dark"] .fpb__modal .fpb__list li:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+

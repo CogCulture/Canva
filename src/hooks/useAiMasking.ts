@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
 import { useEditorActions } from './useEditorActions';

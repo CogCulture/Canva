@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -34,11 +34,16 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<any>) {
           useEditorStore.getState().patchesSentToBackend.clear();
           await invoke('clear_session_caches').catch((e) => console.warn('Cache clear failed:', e));
 
-          const metadata: any = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
+          let metadata: any = null;
+          if (!selectedImage.path.startsWith('data:')) {
+            metadata = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
+          }
           if (!isEffectActive) return;
 
           let initialAdjusts;
-          if (metadata.adjustments && !metadata.adjustments.is_null) {
+          if (useEditorStore.getState().selectedImage?.hasAdjustments) {
+            initialAdjusts = useEditorStore.getState().adjustments;
+          } else if (metadata?.adjustments && !metadata.adjustments.is_null) {
             initialAdjusts = normalizeLoadedAdjustments(metadata.adjustments);
           } else {
             initialAdjusts = { ...INITIAL_ADJUSTMENTS };

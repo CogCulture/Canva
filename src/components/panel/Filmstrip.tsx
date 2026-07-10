@@ -9,6 +9,7 @@ import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useProcessStore } from '../../store/useProcessStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { useEditorStore } from '../../store/useEditorStore';
 
 const HORIZONTAL_PADDING = 4;
 const ITEM_GAP = 8;
@@ -58,6 +59,8 @@ const FilmstripThumbnail = memo(
   }) => {
     const { t } = useTranslation();
     const thumbData = useProcessStore((s) => s.thumbnails[imageFile.path]);
+    const finalPreviewUrl = useEditorStore((s) => s.selectedImage?.path === imageFile.path ? (s.uncroppedAdjustedPreviewUrl || s.finalPreviewUrl) : null);
+    const displayUrl = finalPreviewUrl || thumbData || imageFile.thumbnailUrl;
 
     const [layers, setLayers] = useState<ImageLayer[]>([]);
 
@@ -68,11 +71,11 @@ const FilmstripThumbnail = memo(
     }
 
     const pathRef = useRef(imageFile.path);
-    const hadDataOnPathChange = useRef(!!thumbData);
+    const hadDataOnPathChange = useRef(!!displayUrl);
 
     if (pathRef.current !== imageFile.path) {
       pathRef.current = imageFile.path;
-      hadDataOnPathChange.current = !!thumbData;
+      hadDataOnPathChange.current = !!displayUrl;
     }
 
     const isInitialLoad = useRef(true);
@@ -97,7 +100,7 @@ const FilmstripThumbnail = memo(
       filename.length > 40 ? filename.substring(0, 20) + '...' + filename.substring(filename.length - 17) : filename;
 
     useEffect(() => {
-      if (thumbnailAspectRatio === ThumbnailAspectRatio.Contain && thumbData) {
+      if (thumbnailAspectRatio === ThumbnailAspectRatio.Contain && displayUrl) {
         const img = new Image();
         img.onload = () => {
           const ratio = img.naturalWidth / img.naturalHeight;
@@ -109,30 +112,30 @@ const FilmstripThumbnail = memo(
             }, 50);
           }
         };
-        img.src = thumbData;
+        img.src = displayUrl;
       }
-    }, [thumbData, thumbnailAspectRatio, index, setRatio]);
+    }, [displayUrl, thumbnailAspectRatio, index, setRatio]);
 
     useEffect(() => {
-      if (!thumbData) {
+      if (!displayUrl) {
         setLayers([]);
         return;
       }
 
       setLayers((prev) => {
-        if (prev.some((l) => l.id === thumbData)) return prev;
+        if (prev.some((l) => l.id === displayUrl)) return prev;
 
         if (prev.length === 0) {
           if (hadDataOnPathChange.current) {
-            return [{ id: thumbData, url: thumbData, opacity: 1 }];
+            return [{ id: displayUrl, url: displayUrl, opacity: 1 }];
           } else {
-            return [{ id: thumbData, url: thumbData, opacity: 0 }];
+            return [{ id: displayUrl, url: displayUrl, opacity: 0 }];
           }
         }
 
-        return [...prev, { id: thumbData, url: thumbData, opacity: 0 }];
+        return [...prev, { id: displayUrl, url: displayUrl, opacity: 0 }];
       });
-    }, [thumbData, imageFile.path]);
+    }, [displayUrl, imageFile.path]);
 
     useEffect(() => {
       const layerToFadeIn = layers.find((l) => l.opacity === 0);
@@ -153,17 +156,22 @@ const FilmstripThumbnail = memo(
     }, []);
 
     const ringClass = isActive
-      ? 'ring-2 ring-accent shadow-md'
+      ? 'ring-2 ring-accent shadow-md z-10'
       : isSelected
-        ? 'ring-2 ring-gray-400'
-        : 'hover:ring-2 hover:ring-hover-color';
+        ? 'ring-2 ring-gray-400 z-10'
+        : 'hover:ring-2 hover:ring-hover-color z-0';
 
-    const imageClasses = `w-full h-full group-hover:scale-[1.02] transition-transform duration-300`;
+    const imageClasses = `w-full h-full transition-transform duration-300`;
 
     return (
       <div
+        draggable={true}
+        onDragStart={(e: any) => {
+          e.dataTransfer.setData('text/plain', path);
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
         className={clsx(
-          'h-full w-full rounded-md overflow-hidden cursor-pointer shrink-0 group relative transition-all duration-150 bg-surface',
+          'h-full w-full rounded-md overflow-hidden cursor-pointer shrink-0 group relative transition-all duration-300 ease-out bg-surface hover:scale-110 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50 hover:z-50 origin-center',
           ringClass,
         )}
         onClick={(e: any) => {
@@ -172,7 +180,7 @@ const FilmstripThumbnail = memo(
         }}
         onContextMenu={(e: any) => onContextMenu?.(e, path)}
         style={{
-          zIndex: isActive ? 2 : isSelected ? 1 : 'auto',
+          zIndex: isActive ? 12 : isSelected ? 11 : 'auto',
         }}
         data-tooltip={truncatedTitle}
       >
@@ -360,8 +368,8 @@ const FilmstripList = ({
   const hasCompletedInitialScroll = useRef(false);
 
   const itemHeight = useMemo(() => {
-    const baseHeight = Math.max(20, height - 20);
-    const expandedHeight = Math.max(20, height - 8);
+    const baseHeight = Math.max(20, height - 24);
+    const expandedHeight = Math.max(20, height - 12);
 
     let totalWidthExpanded = HORIZONTAL_PADDING * 2;
     for (let i = 0; i < data.imageList.length; i++) {
@@ -590,7 +598,7 @@ const FilmstripList = ({
         cellComponent={FilmstripCell}
         cellProps={cellProps}
         className="custom-scrollbar"
-        style={{ overflowY: 'hidden' }}
+        style={{ overflowY: 'visible', overflowX: 'auto', zIndex: 10 }}
         onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
           if (e.deltaY !== 0 && Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
             e.currentTarget.scrollLeft += e.deltaY;

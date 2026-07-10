@@ -1,5 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../utils/tauri-mocks';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/useUIStore';

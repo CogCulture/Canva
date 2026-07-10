@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { platform } from '@tauri-apps/plugin-os';
+import { platform } from '../utils/tauri-mocks';
 
 export function useOsPlatform() {
   return useMemo(() => {

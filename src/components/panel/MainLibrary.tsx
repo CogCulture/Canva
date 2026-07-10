@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getVersion } from '@tauri-apps/api/app';
-import { open } from '@tauri-apps/plugin-shell';
+import { getVersion } from '../../utils/tauri-mocks';
+import { open } from '../../utils/tauri-mocks';
 import {
   AlertTriangle,
   Check,
@@ -13,6 +13,7 @@ import {
   Search,
   Users,
   SlidersHorizontal,
+  ImageIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -73,6 +74,7 @@ interface MainLibraryProps {
   thumbnailProgress: Progress;
   thumbnailSize: ThumbnailSize;
   onNavigateToCommunity(): void;
+  onNavigateToIllustrations(): void;
 }
 
 export interface ColumnWidths {
@@ -493,6 +495,13 @@ export default function MainLibrary(props: MainLibraryProps) {
                 data-tooltip={t('library.tooltips.communityPresets')}
               >
                 <Users className="w-8 h-8" />
+              </Button>
+              <Button
+                className="h-12 w-12 bg-surface text-text-primary shadow-none p-0 flex items-center justify-center"
+                onClick={props.onNavigateToIllustrations}
+                data-tooltip="unDraw Illustrations"
+              >
+                <ImageIcon className="w-8 h-8" />
               </Button>
             </>
           )}

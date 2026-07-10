@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import { useTranslation } from 'react-i18next';
 
-import Filmstrip from './Filmstrip';
 import { GLOBAL_KEYS, ImageFile, SelectedImage, ThumbnailAspectRatio } from '../ui/AppProperties';
 import Text from '../ui/Text';
 import { useEditorStore } from '../../store/useEditorStore';
@@ -46,48 +45,6 @@ interface BottomBarProps {
   totalImages?: number;
 }
 
-interface StarRatingProps {
-  disabled: boolean;
-  onRate(rate: number): void;
-  rating: number;
-}
-
-const StarRating = ({ rating, onRate, disabled }: StarRatingProps) => {
-  const { t } = useTranslation();
-
-  return (
-    <div className={clsx('flex items-center gap-1', disabled && 'cursor-not-allowed')}>
-      {[...Array(5)].map((_, index: number) => {
-        const starValue = index + 1;
-        return (
-          <button
-            className="disabled:cursor-not-allowed"
-            disabled={disabled}
-            key={starValue}
-            onClick={() => !disabled && onRate(starValue === rating ? 0 : starValue)}
-            data-tooltip={
-              disabled
-                ? t('ui.bottomBar.tooltips.selectToRate')
-                : t('ui.bottomBar.tooltips.rateStars', { count: starValue })
-            }
-          >
-            <Star
-              size={18}
-              className={clsx(
-                'transition-colors duration-150',
-                disabled
-                  ? 'text-text-secondary opacity-40'
-                  : starValue <= rating
-                    ? 'fill-accent text-accent'
-                    : 'text-text-secondary hover:text-accent',
-              )}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-};
 
 export default function BottomBar({
   filmstripHeight,
@@ -244,30 +201,8 @@ export default function BottomBar({
     }
     e.stopPropagation();
   };
-
   return (
     <div className="shrink-0 bg-bg-secondary rounded-lg flex flex-col">
-      {!isLibraryView && showFilmstrip && (
-        <div
-          className={clsx('overflow-hidden', !isResizing && 'transition-all duration-300 ease-in-out')}
-          style={{ height: isFilmstripVisible ? `${filmstripHeight}px` : '0px' }}
-        >
-          <div className="w-full p-2" style={{ height: `${filmstripHeight}px` }}>
-            <Filmstrip
-              imageList={imageList}
-              imageRatings={imageRatings}
-              isLoading={isLoading}
-              multiSelectedPaths={multiSelectedPaths}
-              onClearSelection={onClearSelection}
-              onContextMenu={onContextMenu}
-              onImageSelect={onImageSelect}
-              onRequestThumbnails={onRequestThumbnails}
-              selectedImage={selectedImage}
-              thumbnailAspectRatio={thumbnailAspectRatio}
-            />
-          </div>
-        </div>
-      )}
 
       <div
         className={clsx(
@@ -277,7 +212,6 @@ export default function BottomBar({
         )}
       >
         <div className="flex items-center gap-4">
-          <StarRating rating={rating} onRate={onRate} disabled={isRatingDisabled} />
           <div className="h-5 w-px bg-surface"></div>
           <div className="flex items-center gap-2">
             <button

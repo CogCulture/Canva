@@ -31,10 +31,16 @@ export const createSubMask = (
           feather: 0.5,
         },
       };
-    case Mask.Linear:
+    case Mask.Rectangle:
       return {
         ...common,
-        parameters: { startX: width * 0.25, startY: height / 2, endX: width * 0.75, endY: height / 2, range: 50 },
+        parameters: {
+          startX: 0,
+          startY: 0,
+          endX: 0,
+          endY: 0,
+          feather: 0,
+        },
       };
     case Mask.Brush:
       return { ...common, parameters: { lines: [] } };

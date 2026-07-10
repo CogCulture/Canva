@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import debounce from 'lodash.debounce';
 import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
@@ -23,6 +23,7 @@ export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
 }, 500);
 
 export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
+  if (path.startsWith('data:')) return;
   invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
     console.error('Auto-save failed:', err);
     toast.error(`Failed to save changes: ${err}`);

@@ -9,6 +9,10 @@ import { AppSettings, BrushSettings, SelectedImage } from '../../ui/AppPropertie
 import { RenderSize } from '../../../hooks/useImageRenderSize';
 import type { OverlayMode } from '../right/CropPanel';
 import CompositionOverlays from './overlays/CompositionOverlays';
+import { invoke } from '../../../utils/tauri-mocks';
+import { Invokes } from '../../ui/AppProperties';
+import { v4 as uuidv4 } from 'uuid';
+import { dragPayloadStore } from '../right/IllustrationsPanel';
 
 interface CursorPreview {
   visible: boolean;
@@ -587,45 +591,29 @@ const MaskOverlay = memo(
       strokeWidth: isSelected ? 3 : 2,
     };
 
-    if (subMask.type === Mask.AiSubject || subMask.type === Mask.QuickEraser) {
+    if (subMask.type === Mask.AiSubject || subMask.type === Mask.QuickEraser || subMask.type === Mask.Rectangle) {
       const { startX, startY, endX, endY } = p;
       if (startX !== undefined && startY !== undefined && endX !== undefined && endY !== undefined) {
-        const isPoint = Math.abs(startX - endX) < 1e-6 && Math.abs(startY - endY) < 1e-6;
-        if (isPoint) {
-          return (
-            <Circle
-              x={(startX - cropX) * scale}
-              y={(startY - cropY) * scale}
-              radius={5}
-              stroke={isSelected ? '#0ea5e9' : 'white'}
-              strokeWidth={2}
-              listening={!isToolActive}
-              onClick={handleSelect}
-              onTap={handleSelect}
-              onTouchEnd={handleMaskTouchEnd}
-              onTouchStart={handleMaskTouchStart}
-              onMouseEnter={onMaskMouseEnter}
-              onMouseLeave={onMaskMouseLeave}
-              shadowColor="black"
-              shadowBlur={2}
-              shadowOpacity={0.8}
-            />
-          );
-        } else {
-          return (
-            <Rect
-              height={Math.max(0.1, Math.abs(endY - startY) * scale)}
-              onMouseEnter={onMaskMouseEnter}
-              onMouseLeave={onMaskMouseLeave}
-              onTouchEnd={handleMaskTouchEnd}
-              onTouchStart={handleMaskTouchStart}
-              width={Math.max(0.1, Math.abs(endX - startX) * scale)}
-              x={(Math.min(startX, endX) - cropX) * scale}
-              y={(Math.min(startY, endY) - cropY) * scale}
-              {...commonProps}
-            />
-          );
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        // Skip rendering if no meaningful box has been drawn yet
+        if (width < 2 && height < 2) {
+          return null;
         }
+        return (
+          <Rect
+            height={Math.max(0.1, height * scale)}
+            onMouseEnter={onMaskMouseEnter}
+            onMouseLeave={onMaskMouseLeave}
+            onTouchEnd={handleMaskTouchEnd}
+            onTouchStart={handleMaskTouchStart}
+            width={Math.max(0.1, width * scale)}
+            x={(Math.min(startX, endX) - cropX) * scale}
+            y={(Math.min(startY, endY) - cropY) * scale}
+            fill={subMask.type === Mask.Rectangle ? 'rgba(14, 165, 233, 0.15)' : undefined}
+            {...commonProps}
+          />
+        );
       }
       return null;
     }
@@ -653,6 +641,7 @@ const MaskOverlay = memo(
       return (
         <Group>
           {isSelected && !isToolActive && (
+            <>{subMask.type === Mask.Radial ? (
             <Ellipse
               x={(centerX - cropX) * scale}
               y={(centerY - cropY) * scale}
@@ -672,37 +661,94 @@ const MaskOverlay = memo(
               onTouchMove={handleRotateMove}
               onTouchEnd={handleRotateEnd}
             />
+          ) : (
+            <Rect
+              x={(centerX - cropX) * scale}
+              y={(centerY - cropY) * scale}
+              width={(Math.max(0.1, radiusX * scale) + 35) * 2}
+              height={(Math.max(0.1, radiusY * scale) + 35) * 2}
+              offsetX={Math.max(0.1, radiusX * scale) + 35}
+              offsetY={Math.max(0.1, radiusY * scale) + 35}
+              rotation={rotation}
+              fill="transparent"
+              draggable
+              dragBoundFunc={lockDragBoundFunc}
+              onDragStart={handleRotateStart}
+              onDragMove={handleRotateMove}
+              onDragEnd={handleRotateEnd}
+              onMouseEnter={handleRotateMouseEnter}
+              onMouseMove={handleRotateHoverMove}
+              onMouseLeave={handleRotateMouseLeave}
+              onTouchStart={handleRotateStart}
+              onTouchMove={handleRotateMove}
+              onTouchEnd={handleRotateEnd}
+            />
           )}
+          </>)}
 
-          <Ellipse
-            {...commonProps}
-            ref={shapeRef}
-            fill="transparent"
-            draggable={!isToolActive}
-            dragBoundFunc={lockDragBoundFunc}
-            onDragStart={handleRadialDragStart}
-            onDragMove={handleRadialDragMove}
-            onDragEnd={handleRadialDragEnd}
-            onMouseEnter={(e: any) => {
-              onMaskMouseEnter();
-              if (!isToolActive && !isDragging.current) {
-                e.target.getStage().container().style.cursor = 'move';
-              }
-            }}
-            onMouseLeave={(e: any) => {
-              onMaskMouseLeave();
-              if (!isDragging.current && e?.target?.getStage) {
-                e.target.getStage().container().style.cursor = '';
-              }
-            }}
-            onTouchEnd={handleMaskTouchEnd}
-            onTouchStart={handleMaskTouchStart}
-            radiusX={Math.max(0.1, radiusX * scale)}
-            radiusY={Math.max(0.1, radiusY * scale)}
-            rotation={rotation}
-            x={(centerX - cropX) * scale}
-            y={(centerY - cropY) * scale}
-          />
+          {subMask.type === Mask.Radial ? (
+            <Ellipse
+              {...commonProps}
+              ref={shapeRef}
+              fill="transparent"
+              draggable={!isToolActive}
+              dragBoundFunc={lockDragBoundFunc}
+              onDragStart={handleRadialDragStart}
+              onDragMove={handleRadialDragMove}
+              onDragEnd={handleRadialDragEnd}
+              onMouseEnter={(e: any) => {
+                onMaskMouseEnter();
+                if (!isToolActive && !isDragging.current) {
+                  e.target.getStage().container().style.cursor = 'move';
+                }
+              }}
+              onMouseLeave={(e: any) => {
+                onMaskMouseLeave();
+                if (!isDragging.current && e?.target?.getStage) {
+                  e.target.getStage().container().style.cursor = '';
+                }
+              }}
+              onTouchEnd={handleMaskTouchEnd}
+              onTouchStart={handleMaskTouchStart}
+              radiusX={Math.max(0.1, radiusX * scale)}
+              radiusY={Math.max(0.1, radiusY * scale)}
+              rotation={rotation}
+              x={(centerX - cropX) * scale}
+              y={(centerY - cropY) * scale}
+            />
+          ) : (
+            <Rect
+              {...commonProps}
+              ref={shapeRef}
+              fill="transparent"
+              draggable={!isToolActive}
+              dragBoundFunc={lockDragBoundFunc}
+              onDragStart={handleRadialDragStart}
+              onDragMove={handleRadialDragMove}
+              onDragEnd={handleRadialDragEnd}
+              onMouseEnter={(e: any) => {
+                onMaskMouseEnter();
+                if (!isToolActive && !isDragging.current) {
+                  e.target.getStage().container().style.cursor = 'move';
+                }
+              }}
+              onMouseLeave={(e: any) => {
+                onMaskMouseLeave();
+                if (!isDragging.current && e?.target?.getStage) {
+                  e.target.getStage().container().style.cursor = '';
+                }
+              }}
+              onTouchEnd={handleMaskTouchEnd}
+              onTouchStart={handleMaskTouchStart}
+              width={Math.max(0.1, radiusX * scale) * 2}
+              height={Math.max(0.1, radiusY * scale) * 2}
+              offsetX={Math.max(0.1, radiusX * scale)}
+              offsetY={Math.max(0.1, radiusY * scale)}
+              rotation={rotation}
+              x={(centerX - cropX) * scale}
+              y={(centerY - cropY) * scale}
+            />
+          )}
           {isSelected && !isToolActive && (
             <Transformer
               ref={trRef}
@@ -746,222 +792,6 @@ const MaskOverlay = memo(
       );
     }
 
-    if (subMask.type === Mask.Linear) {
-      const defaultRange = Math.min(cropW, cropH) * 0.1;
-      const { startX, startY, endX, endY, range = defaultRange } = p;
-
-      const flickDistX = startX - endX;
-      const flickDistY = startY - endY;
-      if (p.isInitialDraw && Math.sqrt(flickDistX * flickDistX + flickDistY * flickDistY) < 1) return null;
-
-      const sX = (startX - cropX) * scale;
-      const sY = (startY - cropY) * scale;
-      const eX = (endX - cropX) * scale;
-      const eY = (endY - cropY) * scale;
-      const r = range * scale;
-
-      const idx = endX - startX;
-      const idy = endY - startY;
-      const angle = Math.atan2(idy, idx);
-      const angleDeg = (angle * 180) / Math.PI;
-
-      const centerX = sX + (eX - sX) / 2;
-      const centerY = sY + (eY - sY) / 2;
-
-      const nx = -Math.sin(angle);
-      const ny = Math.cos(angle);
-      const dx_norm = Math.cos(angle);
-      const dy_norm = Math.sin(angle);
-
-      const EXT = 5000;
-      const topRangePts = [
-        sX + nx * r - dx_norm * EXT,
-        sY + ny * r - dy_norm * EXT,
-        eX + nx * r + dx_norm * EXT,
-        eY + ny * r + dy_norm * EXT,
-      ];
-      const botRangePts = [
-        sX - nx * r - dx_norm * EXT,
-        sY - ny * r - dy_norm * EXT,
-        eX - nx * r + dx_norm * EXT,
-        eY - ny * r + dy_norm * EXT,
-      ];
-
-      const lineProps = {
-        ...commonProps,
-        strokeWidth: isSelected ? 2.5 : 2,
-        dash: [6, 6],
-        hitStrokeWidth: 40,
-      };
-
-      const showFeatherLines = isSelected && (!isToolActive || p.isInitialDraw);
-
-      return (
-        <Group>
-          <Group
-            x={centerX}
-            y={centerY}
-            rotation={angleDeg}
-            draggable={isSelected && !isToolActive}
-            dragBoundFunc={lockDragBoundFunc}
-            onDragStart={handleLinearGroupDragStart}
-            onDragMove={handleLinearGroupDragMove}
-            onDragEnd={handleLinearGroupDragEnd}
-            onClick={handleSelect}
-            onTap={handleSelect}
-            onTouchEnd={handleMaskTouchEnd}
-            onTouchStart={handleMaskTouchStart}
-            onMouseEnter={(e: any) => {
-              onMaskMouseEnter();
-              if (!isToolActive) e.target.getStage().container().style.cursor = 'move';
-            }}
-            onMouseLeave={(e: any) => {
-              onMaskMouseLeave();
-              e.target.getStage().container().style.cursor = '';
-            }}
-          >
-            <Line points={[-5000, 0, 5000, 0]} {...lineProps} dash={[2, 3]} />
-          </Group>
-
-          {showFeatherLines && (
-            <>
-              <Line
-                points={topRangePts}
-                {...lineProps}
-                draggable={!isToolActive}
-                dragBoundFunc={lockDragBoundFunc}
-                onDragStart={handleLinearPointDragStart}
-                onDragMove={handleLinearRangeDragMove}
-                onDragEnd={handleLinearPointDragEnd}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  if (!isToolActive) e.target.getStage().container().style.cursor = 'row-resize';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-              <Line
-                points={botRangePts}
-                {...lineProps}
-                draggable={!isToolActive}
-                dragBoundFunc={lockDragBoundFunc}
-                onDragStart={handleLinearPointDragStart}
-                onDragMove={handleLinearRangeDragMove}
-                onDragEnd={handleLinearPointDragEnd}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  if (!isToolActive) e.target.getStage().container().style.cursor = 'row-resize';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-            </>
-          )}
-
-          {isSelected && !isToolActive && (
-            <>
-              <Circle
-                x={sX}
-                y={sY}
-                radius={8 / stageScale}
-                fill="#0ea5e9"
-                stroke="white"
-                strokeWidth={2 / stageScale}
-                draggable
-                dragBoundFunc={lockDragBoundFunc}
-                onDragStart={handleLinearPointDragStart}
-                onDragMove={(e) => handleLinearPointDragMove(e, 'start')}
-                onDragEnd={handleLinearPointDragEnd}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  e.target.getStage().container().style.cursor = 'grab';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-              <Circle
-                x={eX}
-                y={eY}
-                radius={8 / stageScale}
-                fill="#0ea5e9"
-                stroke="white"
-                strokeWidth={2 / stageScale}
-                draggable
-                dragBoundFunc={lockDragBoundFunc}
-                onDragStart={handleLinearPointDragStart}
-                onDragMove={(e) => handleLinearPointDragMove(e, 'end')}
-                onDragEnd={handleLinearPointDragEnd}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  e.target.getStage().container().style.cursor = 'grab';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-            </>
-          )}
-
-          {!isSelected && (
-            <>
-              <Line
-                points={topRangePts}
-                {...lineProps}
-                opacity={0.7}
-                stroke="white"
-                listening={true}
-                onClick={handleSelect}
-                onTap={handleSelect}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  if (!isToolActive) e.target.getStage().container().style.cursor = 'row-resize';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-              <Line
-                points={botRangePts}
-                {...lineProps}
-                opacity={0.7}
-                stroke="white"
-                listening={true}
-                onClick={handleSelect}
-                onTap={handleSelect}
-                onTouchEnd={handleMaskTouchEnd}
-                onTouchStart={handleMaskTouchStart}
-                onMouseEnter={(e: any) => {
-                  onMaskMouseEnter();
-                  if (!isToolActive) e.target.getStage().container().style.cursor = 'row-resize';
-                }}
-                onMouseLeave={(e: any) => {
-                  onMaskMouseLeave();
-                  e.target.getStage().container().style.cursor = '';
-                }}
-              />
-            </>
-          )}
-        </Group>
-      );
-    }
 
     if (subMask.type === Mask.Color || subMask.type === Mask.Luminance) {
       const { targetX, targetY } = p;
@@ -1064,7 +894,7 @@ const ImageCanvas = memo(
     const [isAltPressed, setIsAltPressed] = useState(false);
     const retainedPatchRef = useRef<typeof interactivePatch>(null);
 
-    const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
+    const isWgpuActive = false;
 
     const paddingX = imageRenderSize.width * 0.5;
     const paddingY = imageRenderSize.height * 0.5;
@@ -1288,7 +1118,7 @@ const ImageCanvas = memo(
     ]);
     const isAiSubjectActive =
       (isMasking || isAiEditing) &&
-      (activeSubMask?.type === Mask.AiSubject || activeSubMask?.type === Mask.QuickEraser);
+      (activeSubMask?.type === Mask.AiSubject || activeSubMask?.type === Mask.QuickEraser || activeSubMask?.type === Mask.Rectangle);
     const isParametricActive =
       (isMasking || isAiEditing) && (activeSubMask?.type === Mask.Color || activeSubMask?.type === Mask.Luminance);
     const isInitialDrawing = (isMasking || isAiEditing) && activeSubMask?.parameters?.isInitialDraw === true;
@@ -1514,15 +1344,6 @@ const ImageCanvas = memo(
               radiusY: 0,
               rotation: 0,
             };
-          } else if (activeSubMask.type === Mask.Linear) {
-            initialParams = {
-              ...initialParams,
-              startX: x,
-              startY: y,
-              endX: x,
-              endY: y,
-              range: 0,
-            };
           }
 
           setLocalInitialDrawParams(initialParams);
@@ -1725,20 +1546,6 @@ const ImageCanvas = memo(
           if (activeSubMask.type === Mask.Radial) {
             updatedParams.radiusX = Math.max(1, Math.abs(x - dragStartPointer.current.x));
             updatedParams.radiusY = Math.max(1, Math.abs(y - dragStartPointer.current.y));
-          } else if (activeSubMask.type === Mask.Linear) {
-            const dx = x - dragStartPointer.current.x;
-            const dy = y - dragStartPointer.current.y;
-            const R = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-
-            const px = -dy / R;
-            const py = dx / R;
-            const handleDist = Math.min(effectiveImageDimensions.width, effectiveImageDimensions.height) * 0.2;
-
-            updatedParams.startX = dragStartPointer.current.x + px * handleDist;
-            updatedParams.startY = dragStartPointer.current.y + py * handleDist;
-            updatedParams.endX = dragStartPointer.current.x - px * handleDist;
-            updatedParams.endY = dragStartPointer.current.y - py * handleDist;
-            updatedParams.range = R;
           }
 
           setLocalInitialDrawParams(updatedParams);
@@ -1875,15 +1682,6 @@ const ImageCanvas = memo(
         if (activeSubMask.type === Mask.Radial && newParams.radiusX < 10 && newParams.radiusY < 10) {
           newParams.radiusX = 100;
           newParams.radiusY = 100;
-        } else if (activeSubMask.type === Mask.Linear) {
-          if (!newParams.range || newParams.range < 10) {
-            const handleDist = Math.min(effectiveImageDimensions.width, effectiveImageDimensions.height) * 0.2;
-            newParams.startX = dragStartPointer.current!.x + handleDist;
-            newParams.startY = dragStartPointer.current!.y;
-            newParams.endX = dragStartPointer.current!.x - handleDist;
-            newParams.endY = dragStartPointer.current!.y;
-            newParams.range = 100;
-          }
         }
 
         updateSubMask(activeId, { parameters: newParams });
@@ -2008,6 +1806,7 @@ const ImageCanvas = memo(
       brushSettings,
       imageRenderSize.scale,
       isAiEditing,
+      isAiSubjectActive,
       isBrushActive,
       activeLineFlow,
       isMasking,
@@ -2260,8 +2059,93 @@ const ImageCanvas = memo(
       setIsMaskTouchInteracting(false);
     }, [setIsMaskTouchInteracting]);
 
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('application/x-rapidraw-undraw')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, []);
+
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
+      const illustrationId = e.dataTransfer.getData('application/x-rapidraw-undraw');
+      if (illustrationId && selectedImage?.path) {
+        e.preventDefault();
+        e.stopPropagation();
+        const payload = dragPayloadStore.get(illustrationId);
+        if (!payload) {
+          console.error('Drag payload not found for id:', illustrationId);
+          return;
+        }
+        try {
+          const { title, svgText, slug } = payload;
+          
+          // Get the directory of the current image
+          const directory = selectedImage.path.substring(0, Math.max(selectedImage.path.lastIndexOf('\\'), selectedImage.path.lastIndexOf('/')));
+          const filename = `${slug}_${Date.now()}.svg`;
+          
+          // Call the Rust backend to save the SVG file (raw text, not base64)
+          const savedPath: string = await invoke(Invokes.SaveSvgToDirectory, {
+            directory,
+            filename,
+            svg_text: svgText,
+          });
+          
+          // Calculate drop position normalized to the image
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const dropX = e.clientX - rect.left;
+          const dropY = e.clientY - rect.top;
+          
+          let normX = 0.25;
+          let normY = 0.25;
+          if (imageRenderSize.width > 0 && imageRenderSize.height > 0) {
+            normX = Math.max(0, (dropX - imageRenderSize.offsetX) / imageRenderSize.width - 0.25);
+            normY = Math.max(0, (dropY - imageRenderSize.offsetY) / imageRenderSize.height - 0.25);
+          }
+          
+          // Use /api/static to serve the saved SVG (works in browser mode)
+          const encodedPath = encodeURIComponent(savedPath.replace(/\\/g, '/'));
+          const baseUrl = import.meta.env.VITE_API_URL || '';
+          const svgUrl = `${baseUrl}/api/static?path=${encodedPath}`;
+          
+          // Add an AiPatch overlay pointing to the new file
+          setAdjustments((prev) => ({
+            ...prev,
+            aiPatches: [
+              ...(prev.aiPatches || []),
+              {
+                id: uuidv4(),
+                isLoading: false,
+                invert: false,
+                name: title,
+                patchData: {
+                  normX,
+                  normY,
+                  normW: 0.5,
+                  normH: 0.5,
+                  url: svgUrl,
+                },
+                prompt: 'unDraw Illustration',
+                subMasks: [],
+                visible: true,
+              },
+            ],
+          }));
+          
+          // Clean up the store entry
+          dragPayloadStore.delete(illustrationId);
+        } catch (error) {
+          console.error('Failed to drop illustration:', error);
+        }
+      }
+    }, [selectedImage, imageRenderSize, setAdjustments]);
+
     return (
-      <div className="relative" style={{ width: '100%', height: '100%', cursor: effectiveCursor }}>
+      <div 
+        className="relative" 
+        style={{ width: '100%', height: '100%', cursor: effectiveCursor }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
         <div
           className="absolute inset-0 w-full h-full transition-opacity duration-200 flex items-center justify-center"
           style={{
@@ -2326,18 +2210,61 @@ const ImageCanvas = memo(
                   />
                 )}
 
-                {visiblePatch && !isWgpuActive && (
-                  <image
-                    href={visiblePatch.url}
-                    x={`${visiblePatch.normX * 100}%`}
-                    y={`${visiblePatch.normY * 100}%`}
-                    width={`${visiblePatch.normW * 100}%`}
-                    height={`${visiblePatch.normH * 100}%`}
-                    preserveAspectRatio="none"
-                    style={{ imageRendering: isMaxZoom ? 'pixelated' : 'auto' }}
-                  />
-                )}
               </svg>
+
+              {adjustments.aiPatches?.filter(p => p.visible && p.patchData?.url).map(patch => (
+                <img
+                  key={patch.id}
+                  alt={patch.name}
+                  src={patch.patchData.url}
+                  className="absolute pointer-events-none"
+                  style={
+                    imageRenderSize.width > 0 && imageRenderSize.height > 0
+                      ? {
+                          left: `${imageRenderSize.offsetX + patch.patchData.normX * imageRenderSize.width}px`,
+                          top: `${imageRenderSize.offsetY + patch.patchData.normY * imageRenderSize.height}px`,
+                          width: `${patch.patchData.normW * imageRenderSize.width}px`,
+                          height: `${patch.patchData.normH * imageRenderSize.height}px`,
+                          imageRendering: isMaxZoom ? 'pixelated' : 'auto',
+                          zIndex: patch.id === activeAiPatchContainerId ? 2 : 1,
+                          opacity: patch.id === activeAiPatchContainerId && isAiEditing ? 0.5 : 1, // Dim if it's currently being actively edited to show the interactive patch over it
+                        }
+                      : {
+                          left: `${patch.patchData.normX * 100}%`,
+                          top: `${patch.patchData.normY * 100}%`,
+                          width: `${patch.patchData.normW * 100}%`,
+                          height: `${patch.patchData.normH * 100}%`,
+                        }
+                  }
+                />
+              ))}
+
+              {visiblePatch && !isWgpuActive && (
+                <img
+                  alt="Interactive Patch"
+                  src={visiblePatch.url}
+                  className="absolute pointer-events-none"
+                  style={
+                    imageRenderSize.width > 0 && imageRenderSize.height > 0
+                      ? {
+                          left: `${imageRenderSize.offsetX + visiblePatch.normX * imageRenderSize.width}px`,
+                          top: `${imageRenderSize.offsetY + visiblePatch.normY * imageRenderSize.height}px`,
+                          width: `${visiblePatch.normW * imageRenderSize.width}px`,
+                          height: `${visiblePatch.normH * imageRenderSize.height}px`,
+                          imageRendering: isMaxZoom ? 'pixelated' : 'auto',
+                          zIndex: 1,
+                        }
+                      : {
+                          left: `${visiblePatch.normX * 100}%`,
+                          top: `${visiblePatch.normY * 100}%`,
+                          width: `${visiblePatch.normW * 100}%`,
+                          height: `${visiblePatch.normH * 100}%`,
+                          imageRendering: isMaxZoom ? 'pixelated' : 'auto',
+                          zIndex: 1,
+                        }
+                  }
+                />
+              )}
 
               {originalSrc && (
                 <img
@@ -2459,18 +2386,6 @@ const ImageCanvas = memo(
                           );
                         })}
 
-                      {previewBox && (
-                        <Rect
-                          x={Math.min(previewBox.start.x, previewBox.end.x)}
-                          y={Math.min(previewBox.start.y, previewBox.end.y)}
-                          width={Math.max(0.1, Math.abs(previewBox.end.x - previewBox.start.x))}
-                          height={Math.max(0.1, Math.abs(previewBox.end.y - previewBox.start.y))}
-                          stroke="#0ea5e9"
-                          strokeWidth={2}
-                          dash={[4, 4]}
-                          listening={false}
-                        />
-                      )}
                       {isBrushActive && cursorPreview.visible && (
                         <Circle
                           {...(brushCursorPreview.colorStops
@@ -2487,6 +2402,31 @@ const ImageCanvas = memo(
                           radius={brushCursorPreview.radius}
                           x={cursorPreview.x}
                           y={cursorPreview.y}
+                        />
+                      )}
+                      {isBrushActive && cursorPreview.visible && (
+                        <Circle
+                          x={cursorPreview.x}
+                          y={cursorPreview.y}
+                          radius={(brushSettings.size * imageRenderSize.scale) / 2}
+                          stroke="#ef4444"
+                          strokeWidth={2 / maxSafeScale}
+                          fill="rgba(239, 68, 68, 0.2)"
+                          listening={false}
+                        />
+                      )}
+                      {/* Preview box inside scaled groups, so no need to divide coords by maxSafeScale again */}
+                      {previewBox && (
+                        <Rect
+                          x={Math.min(previewBox.start.x, previewBox.end.x)}
+                          y={Math.min(previewBox.start.y, previewBox.end.y)}
+                          width={Math.max(0.1, Math.abs(previewBox.end.x - previewBox.start.x))}
+                          height={Math.max(0.1, Math.abs(previewBox.end.y - previewBox.start.y))}
+                          stroke="#ef4444"
+                          strokeWidth={2 / maxSafeScale}
+                          fill="rgba(239, 68, 68, 0.4)"
+                          dash={[4 / maxSafeScale, 4 / maxSafeScale]}
+                          listening={false}
                         />
                       )}
                     </Group>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { invoke } from '../../../utils/tauri-mocks';
+import { open as openDialog, save as saveDialog } from '../../../utils/tauri-mocks';
 import {
   DndContext,
   DragOverlay,

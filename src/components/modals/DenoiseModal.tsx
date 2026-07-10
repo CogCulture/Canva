@@ -7,7 +7,7 @@ import Dropdown from '../ui/Dropdown';
 import Slider from '../ui/Slider';
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../../utils/tauri-mocks';
 
 interface DenoiseModalProps {
   isOpen: boolean;

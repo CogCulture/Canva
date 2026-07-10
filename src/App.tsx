@@ -1,7 +1,7 @@
 import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from './utils/tauri-mocks';
+import { listen } from './utils/tauri-mocks';
+import { getCurrentWindow } from './utils/tauri-mocks';
 import { ClerkProvider } from '@clerk/react';
 import { ToastContainer, toast, Slide } from 'react-toastify';
 import clsx from 'clsx';
@@ -12,9 +12,13 @@ import ExportPanel from './components/panel/right/ExportPanel';
 import Resizer from './components/ui/Resizer';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
+import { ErrorBoundary } from './ErrorBoundary';
 
 import EditorView from './components/views/EditorView';
-import LibraryView from './components/views/LibraryView';
+import CanvasView from './components/canvas/CanvasView';
+import CanvasHomeScreen from './components/canvas/CanvasHomeScreen';
+
+import { useCanvasStore } from './store/useCanvasStore';
 
 import { ContextMenuProvider } from './context/ContextMenuContext';
 import { useSettingsStore } from './store/useSettingsStore';
@@ -599,7 +603,7 @@ function App() {
   };
 
   const shouldHideFolderTree = isAndroid;
-  const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
+  const isWgpuActive = false;
   const useMacWindowShell = osPlatform === 'macos' && !appSettings?.decorations && !isWindowFullScreen && !isFullScreen;
 
   return (
@@ -636,10 +640,9 @@ function App() {
           )}
         >
           <div className="flex flex-row grow h-full min-h-0">
-            {!shouldHideFolderTree && renderFolderTree()}
             <div className="flex-1 flex flex-col min-w-0">
-              {selectedImage ? (
-                <EditorView
+                {selectedImage ? (
+<EditorView
                   transformWrapperRef={transformWrapperRef}
                   isResizing={isResizing}
                   isCompactPortrait={isCompactPortrait}
@@ -661,34 +664,8 @@ function App() {
                   handleRightPanelSelect={handleRightPanelSelect}
                   requestThumbnails={requestThumbnails}
                 />
-              ) : (
-                <LibraryView
-                  sortedImageList={sortedImageList}
-                  thumbnailSize={thumbnailSize}
-                  thumbnailAspectRatio={thumbnailAspectRatio}
-                  libraryViewMode={libraryViewMode}
-                  isAndroid={isAndroid}
-                  setThumbnailSize={setThumbnailSize}
-                  setThumbnailAspectRatio={setThumbnailAspectRatio}
-                  setLibraryViewMode={setLibraryViewMode}
-                  handleClearSelection={handleClearSelection}
-                  handleLibraryImageSingleClick={handleLibraryImageSingleClick}
-                  handleImageSelect={handleImageSelect}
-                  handleRate={handleRate}
-                  handleThumbnailContextMenu={handleThumbnailContextMenu}
-                  handleMainLibraryContextMenu={handleMainLibraryContextMenu}
-                  handleContinueSession={handleContinueSession}
-                  handleGoHome={handleGoHome}
-                  handleOpenFolder={handleOpenFolder}
-                  handleImportClick={handleImportClick}
-                  handleLibraryRefresh={handleLibraryRefresh}
-                  handleCopyAdjustments={handleCopyAdjustments}
-                  handlePasteAdjustments={handlePasteAdjustments}
-                  handleResetAdjustments={handleResetAdjustments}
-                  requestThumbnails={requestThumbnails}
-                />
-              )}
-            </div>
+                ) : null}
+              </div>
             {!selectedImage && isLibraryExportPanelVisible && (
               <Resizer direction={Orientation.Vertical} onMouseDown={createResizeHandler('right', rightPanelWidth)} />
             )}
@@ -758,10 +735,31 @@ function App() {
   );
 }
 
+// NOTE: CanvasHomeScreen (project list) is always shown on boot.
+// CanvasView is layered on top when a canvas is opened.
+function CanvasRoot() {
+  const isCanvasViewOpen = useCanvasStore((s) => s.isCanvasViewOpen);
+  const isCanvasHomeOpen = useCanvasStore((s) => s.isCanvasHomeOpen);
+  const imageEditLayerId = useCanvasStore((s) => s.imageEditLayerId);
+  return (
+    <>
+      {isCanvasHomeOpen && <CanvasHomeScreen />}
+      <ErrorBoundary>
+        {isCanvasViewOpen && (
+          <div style={{ display: imageEditLayerId ? 'none' : 'block' }}>
+            <CanvasView />
+          </div>
+        )}
+      </ErrorBoundary>
+    </>
+  );
+}
+
 const AppWrapper = () => (
   <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} routerPush={(to) => {}} routerReplace={(to) => {}}>
     <ContextMenuProvider>
       <App />
+      <CanvasRoot />
       <GlobalTooltip />
     </ContextMenuProvider>
   </ClerkProvider>

@@ -104,6 +104,8 @@ export enum Invokes {
   GenerateAllCommunityPreviews = 'generate_all_community_previews',
   SaveCommunityPreset = 'save_community_preset',
   SaveTempFile = 'save_temp_file',
+  SaveSvgToDirectory = 'save_svg_to_directory',
+  FetchSvgContent = 'fetch_svg_content',
   GetAlbums = 'get_albums',
   SaveAlbums = 'save_albums',
   AddToAlbum = 'add_to_album',
@@ -124,6 +126,7 @@ export enum Panel {
   Masks = 'masks',
   Metadata = 'metadata',
   Presets = 'presets',
+  Illustrations = 'illustrations',
 }
 
 export enum RawStatus {

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
-import { homeDir } from '@tauri-apps/api/path';
+import { invoke } from '../utils/tauri-mocks';
+import { open } from '../utils/tauri-mocks';
+import { homeDir } from '../utils/tauri-mocks';
 import { toast } from 'react-toastify';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';

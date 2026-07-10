@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
-import { platform } from '@tauri-apps/plugin-os';
+import { invoke } from '../utils/tauri-mocks';
+import { platform } from '../utils/tauri-mocks';
 import { AppSettings, SupportedTypes, Invokes } from '../components/ui/AppProperties';
 import { DEFAULT_THEME_ID } from '../utils/themes';
 

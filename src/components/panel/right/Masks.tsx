@@ -9,7 +9,7 @@ import {
   MoreHorizontal,
   RectangleHorizontal,
   Sparkles,
-  TriangleRight,
+  Square,
   User,
   Sun,
 } from 'lucide-react';
@@ -24,7 +24,7 @@ export enum Mask {
   Brush = 'brush',
   Flow = 'flow',
   Color = 'color',
-  Linear = 'linear',
+  Rectangle = 'rectangle',
   Luminance = 'luminance',
   QuickEraser = 'quick-eraser',
   Radial = 'radial',
@@ -73,7 +73,7 @@ export function formatMaskTypeName(type: string) {
   if (type === Mask.Brush) return i18n.t('masks.types.brush');
   if (type === Mask.Flow) return i18n.t('masks.types.flow');
   if (type === Mask.Color) return i18n.t('masks.types.color');
-  if (type === Mask.Linear) return i18n.t('masks.types.linear');
+  if (type === Mask.Rectangle) return i18n.t('masks.types.rectangle');
   if (type === Mask.Luminance) return i18n.t('masks.types.luminance');
   if (type === Mask.Radial) return i18n.t('masks.types.radial');
   return type.charAt(0).toUpperCase() + type.slice(1);
@@ -100,7 +100,7 @@ export const MASK_ICON_MAP: Record<Mask, any> = {
   [Mask.Brush]: Brush,
   [Mask.Flow]: Droplets,
   [Mask.Color]: Droplet,
-  [Mask.Linear]: TriangleRight,
+  [Mask.Rectangle]: Square,
   [Mask.Luminance]: Sparkles,
   [Mask.QuickEraser]: Eraser,
   [Mask.Radial]: Circle,
@@ -127,9 +127,9 @@ export const MASK_PANEL_CREATION_TYPES: Array<MaskType> = [
   },
   {
     disabled: false,
-    icon: TriangleRight,
-    name: 'Linear',
-    type: Mask.Linear,
+    icon: Square,
+    name: 'Rectangle',
+    type: Mask.Rectangle,
   },
   {
     disabled: false,
@@ -173,9 +173,9 @@ export const AI_PANEL_CREATION_TYPES: Array<MaskType> = [
   },
   {
     disabled: false,
-    icon: TriangleRight,
-    name: 'Linear',
-    type: Mask.Linear,
+    icon: Square,
+    name: 'Rectangle',
+    type: Mask.Rectangle,
   },
   {
     disabled: false,
@@ -206,9 +206,9 @@ export const SUB_MASK_COMPONENT_TYPES: Array<MaskType> = [
   },
   {
     disabled: false,
-    icon: TriangleRight,
-    name: 'Linear',
-    type: Mask.Linear,
+    icon: Square,
+    name: 'Rectangle',
+    type: Mask.Rectangle,
   },
   {
     disabled: false,
@@ -285,9 +285,9 @@ export const AI_SUB_MASK_COMPONENT_TYPES: Array<MaskType> = [
   },
   {
     disabled: false,
-    icon: TriangleRight,
-    name: 'Linear',
-    type: Mask.Linear,
+    icon: Square,
+    name: 'Rectangle',
+    type: Mask.Rectangle,
   },
   {
     disabled: false,

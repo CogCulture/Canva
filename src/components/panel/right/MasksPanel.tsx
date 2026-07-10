@@ -101,7 +101,7 @@ const SUB_MASK_CONFIG: Record<Mask, any> = {
   },
   [Mask.Brush]: { showBrushTools: true },
   [Mask.Flow]: { showBrushTools: true, showFlowControl: true },
-  [Mask.Linear]: { parameters: [] },
+  [Mask.Rectangle]: { parameters: [] },
   [Mask.Color]: {
     parameters: [
       { key: 'tolerance', min: 1, max: 100, step: 1, defaultValue: 20 },
@@ -758,14 +758,14 @@ export default function MasksPanel() {
     const imgW = isRotated ? selectedImage.height || 1000 : selectedImage.width || 1000;
     const imgH = isRotated ? selectedImage.width || 1000 : selectedImage.height || 1000;
 
-    if (type === Mask.Linear && subMask.parameters) {
+    if (type === Mask.Rectangle && subMask.parameters) {
       subMask.parameters.range = Math.min(imgW, imgH) * 0.1;
     }
 
-    if (type === Mask.Linear || type === Mask.Radial || type === Mask.Color || type === Mask.Luminance) {
+    if (type === Mask.Rectangle || type === Mask.Radial || type === Mask.Color || type === Mask.Luminance) {
       if (!subMask.parameters) subMask.parameters = {};
       subMask.parameters.isInitialDraw = true;
-      if (type === Mask.Linear || type === Mask.Radial) {
+      if (type === Mask.Rectangle || type === Mask.Radial) {
         subMask.parameters.startX = -10000;
         subMask.parameters.startY = -10000;
         subMask.parameters.endX = -10000;

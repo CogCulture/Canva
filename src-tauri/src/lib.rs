@@ -1,3 +1,75 @@
+
+use std::path::PathBuf;
+
+#[derive(Clone)]
+pub struct DummyAppHandle {
+    pub state: Option<std::sync::Arc<crate::app_state::AppState>>,
+}
+
+impl DummyAppHandle {
+    pub fn emit<S: serde::Serialize>(&self, _event: &str, _payload: S) -> Result<(), String> { Ok(()) }
+        pub fn state<T: 'static + Clone>(&self) -> axum::extract::State<T> {
+        let state = self.state.clone().unwrap();
+        let any_state: Box<dyn std::any::Any> = Box::new(state);
+        let downcasted = any_state.downcast::<T>().expect("Failed to downcast state");
+        axum::extract::State(*downcasted)
+    }
+    pub fn path(&self) -> DummyPathResolver { DummyPathResolver {} }
+}
+
+pub struct DummyPathResolver {}
+impl DummyPathResolver {
+    pub fn app_log_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn app_config_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn app_data_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn app_cache_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn app_local_data_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn document_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn download_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn picture_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn video_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn audio_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn desktop_dir(&self) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+    pub fn resolve<T>(&self, _path: &str, _flags: T) -> Result<std::path::PathBuf, String> { Ok(std::path::PathBuf::from(".")) }
+}
+#[derive(Clone)]
+pub struct DummyWindow {}
+impl DummyWindow {
+    pub fn set_ignore_cursor_events(&self, _ignore: bool) -> Result<(), String> { Ok(()) }
+    pub fn current_monitor(&self) -> Option<Option<DummyMonitor>> { None }
+    pub fn primary_monitor(&self) -> Result<Option<DummyMonitor>, String> { Ok(None) }
+    pub fn available_monitors(&self) -> Result<Vec<DummyMonitor>, String> { Ok(vec![]) }
+    pub fn set_size(&self, _size: ()) -> Result<(), String> { Ok(()) }
+    pub fn set_position(&self, _pos: ()) -> Result<(), String> { Ok(()) }
+    pub fn show(&self) -> Result<(), String> { Ok(()) }
+    pub fn set_focus(&self) -> Result<(), String> { Ok(()) }
+    pub fn maximize(&self) -> Result<(), String> { Ok(()) }
+    pub fn set_fullscreen(&self, _f: bool) -> Result<(), String> { Ok(()) }
+}
+
+pub struct DummyMonitor {}
+impl DummyMonitor {
+    pub fn size(&self) -> DummySize { DummySize { width: 0, height: 0 } }
+    pub fn position(&self) -> DummyPosition { DummyPosition { x: 0, y: 0 } }
+}
+pub struct DummySize { pub width: u32, pub height: u32 }
+impl DummySize {
+    pub fn to_logical<T>(&self, _scale: f64) -> DummyPhysical { DummyPhysical { width: 0, height: 0, x: 0, y: 0 } }
+}
+pub struct DummyPosition { pub x: i32, pub y: i32 }
+impl DummyPosition {
+    pub fn to_logical<T>(&self, _scale: f64) -> DummyPhysical { DummyPhysical { width: 0, height: 0, x: 0, y: 0 } }
+}
+pub struct DummyPhysical {
+    pub width: u32,
+    pub height: u32,
+    pub x: i32,
+    pub y: i32,
+}
+
+pub type AppHandle = DummyAppHandle;
+pub type Response = axum::response::Response;
+
 #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
 use mimalloc::MiMalloc;
 
@@ -11,13 +83,13 @@ mod ai_connector;
 mod ai_processing;
 mod android_integration;
 mod app_settings;
-mod app_state;
-mod cache_utils;
+pub mod app_state;
+pub mod cache_utils;
 mod culling;
 mod denoising;
 mod exif_processing;
 mod export_processing;
-mod file_management;
+pub mod file_management;
 mod formats;
 mod gpu_processing;
 mod image_loader;
@@ -40,7 +112,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::io::Write;
 use std::panic;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -63,7 +135,6 @@ use rgb::{FromSlice, RGBA8};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{Emitter, Manager, ipc::Response};
 use tempfile::NamedTempFile;
 use tokio::sync::Mutex as TokioMutex;
 
@@ -89,7 +160,7 @@ use crate::mask_generation::{
     MaskDefinition, generate_mask_bitmap, get_cached_or_generate_mask,
     resolve_warped_image_for_masks,
 };
-use crate::window_customizer::PinchZoomDisablePlugin;
+
 pub use adjustment_utils::*;
 pub use android_integration::*;
 pub use app_settings::*;
@@ -154,7 +225,7 @@ pub struct WgpuTransformPayload {
 }
 
 pub fn generate_transformed_preview(
-    state: &tauri::State<AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
     preview_dim: u32,
@@ -216,7 +287,7 @@ fn compute_full_transformed_res(
     Ok((Arc::new(transformed_img.into_owned()), offset))
 }
 
-pub fn get_or_load_lut(state: &tauri::State<AppState>, path: &str) -> Result<Arc<Lut>, String> {
+pub fn get_or_load_lut(state: axum::extract::State<std::sync::Arc<AppState>>, path: &str) -> Result<Arc<Lut>, String> {
     let mut cache = state.lut_cache.lock().unwrap();
     if let Some(lut) = cache.get(path) {
         return Ok(lut.clone());
@@ -228,7 +299,7 @@ pub fn get_or_load_lut(state: &tauri::State<AppState>, path: &str) -> Result<Arc
     Ok(arc_lut)
 }
 
-#[tauri::command]
+
 fn get_image_dimensions(path: String) -> Result<ImageDimensions, String> {
     let (source_path, _) = parse_virtual_path(&path);
     image::image_dimensions(&source_path)
@@ -236,10 +307,10 @@ fn get_image_dimensions(path: String) -> Result<ImageDimensions, String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+
 fn cancel_thumbnail_generation(
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<(), String> {
     state
         .thumbnail_cancellation_token
@@ -258,7 +329,7 @@ fn cancel_thumbnail_generation(
 }
 
 pub fn get_cached_full_warped_image(
-    state: &tauri::State<AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
     js_adjustments: &serde_json::Value,
 ) -> Result<Arc<DynamicImage>, String> {
     let geo_hash = calculate_geometry_hash(js_adjustments);
@@ -272,7 +343,7 @@ pub fn get_cached_full_warped_image(
         }
     }
 
-    let (mut full_image, is_raw) = get_full_image_for_processing(state)?;
+    let (mut full_image, is_raw) = get_full_image_for_processing(state.clone())?;
     if is_raw {
         apply_cpu_default_raw_processing(&mut full_image);
     }
@@ -287,10 +358,10 @@ pub fn get_cached_full_warped_image(
     Ok(warped_arc)
 }
 
-#[tauri::command]
+
 async fn update_wgpu_transform(
     payload: WgpuTransformPayload,
-    state: tauri::State<'_, AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<(), String> {
     let context = match state.gpu_context.lock().unwrap().as_ref() {
         Some(c) => c.clone(),
@@ -328,8 +399,8 @@ async fn update_wgpu_transform(
 
 #[allow(clippy::too_many_arguments)]
 fn process_preview_job(
-    app_handle: &tauri::AppHandle,
-    state: tauri::State<AppState>,
+    app_handle: &crate::DummyAppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
     mut adjustments_json: serde_json::Value,
     is_interactive: bool,
     target_resolution: Option<u32>,
@@ -355,9 +426,6 @@ fn process_preview_job(
 
     let default_preview_dim = settings.editor_preview_resolution.unwrap_or(1920);
     let preview_dim = target_resolution.unwrap_or(default_preview_dim);
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let use_wgpu_renderer = settings.use_wgpu_renderer.unwrap_or(true);
-    #[cfg(any(target_os = "linux", target_os = "android"))]
     let use_wgpu_renderer = false;
 
     let has_roi = roi.is_some();
@@ -388,7 +456,7 @@ fn process_preview_job(
         *state.gpu_image_cache.lock().unwrap() = None;
 
         let (base, scale, offset) =
-            generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim)?;
+            generate_transformed_preview(state.clone(), &loaded_image, &adjustments_clone, preview_dim)?;
         (Arc::new(base), scale, offset)
     };
 
@@ -485,7 +553,7 @@ fn process_preview_job(
     let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
     let final_adjustments = get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
     let lut_path = adjustments_clone["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+    let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
 
     let wants_analytics = !(is_interactive && pixel_roi.is_some());
     let channel_filter = if is_interactive {
@@ -613,8 +681,8 @@ fn process_preview_job(
     }
 }
 
-fn start_analytics_worker(app_handle: tauri::AppHandle) {
-    let state = app_handle.state::<AppState>();
+pub fn start_analytics_worker(app_handle: crate::DummyAppHandle) {
+    let state = app_handle.state::<std::sync::Arc<crate::app_state::AppState>>();
     let (tx, rx): (Sender<AnalyticsJob>, Receiver<AnalyticsJob>) = mpsc::channel();
     *state.analytics_worker_tx.lock().unwrap() = Some(tx);
 
@@ -647,8 +715,8 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
     });
 }
 
-fn start_preview_worker(app_handle: tauri::AppHandle) {
-    let state = app_handle.state::<AppState>();
+pub fn start_preview_worker(app_handle: crate::DummyAppHandle) {
+    let state = app_handle.state::<std::sync::Arc<crate::app_state::AppState>>();
     let (tx, rx): (Sender<PreviewJob>, Receiver<PreviewJob>) = mpsc::channel();
 
     *state.preview_worker_tx.lock().unwrap() = Some(tx);
@@ -659,11 +727,11 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
                 job = latest_job;
             }
 
-            let state = app_handle.state::<AppState>();
+            let state = app_handle.state::<std::sync::Arc<crate::app_state::AppState>>();
             let responder = job.responder;
             match process_preview_job(
                 &app_handle,
-                state,
+                state.clone(),
                 job.adjustments,
                 job.is_interactive,
                 job.target_resolution,
@@ -682,7 +750,7 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
     });
 }
 
-#[tauri::command]
+
 async fn apply_adjustments(
     js_adjustments: serde_json::Value,
     is_interactive: bool,
@@ -690,7 +758,7 @@ async fn apply_adjustments(
     roi: Option<(f32, f32, f32, f32)>,
     compute_waveform: bool,
     active_waveform_channel: Option<String>,
-    state: tauri::State<'_, AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<Response, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
 
@@ -715,16 +783,16 @@ async fn apply_adjustments(
     }
 
     match rx.await {
-        Ok(bytes) => Ok(Response::new(bytes)),
+        Ok(bytes) => Ok(crate::Response::new(bytes.into())),
         Err(_) => Err("Superseded or worker failed".to_string()),
     }
 }
 
-#[tauri::command]
+
 fn generate_uncropped_preview(
     js_adjustments: serde_json::Value,
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<(), String> {
     let context = get_or_init_gpu_context(&state, &app_handle)?;
     let mut adjustments_clone = js_adjustments.clone();
@@ -738,7 +806,7 @@ fn generate_uncropped_preview(
         .ok_or("No original image loaded")?;
 
     thread::spawn(move || {
-        let state = app_handle.state::<AppState>();
+        let state = app_handle.state::<std::sync::Arc<crate::app_state::AppState>>();
         let path = loaded_image.path.clone();
         let is_raw = loaded_image.is_raw;
         let unique_hash = calculate_full_job_hash(&path, &adjustments_clone);
@@ -816,7 +884,7 @@ fn generate_uncropped_preview(
         let uncropped_adjustments =
             get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
         let lut_path = adjustments_clone["lutPath"].as_str();
-        let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+        let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
 
         if let Ok(processed_image) = process_and_get_dynamic_image(
             &context,
@@ -852,12 +920,12 @@ fn generate_uncropped_preview(
     Ok(())
 }
 
-#[tauri::command]
+
 fn generate_original_transformed_preview(
     js_adjustments: serde_json::Value,
     target_resolution: Option<u32>,
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<String, String> {
     let loaded_image = state
         .original_image
@@ -900,13 +968,13 @@ fn generate_original_transformed_preview(
     Ok(format!("data:image/jpeg;base64,{}", base64_str))
 }
 
-#[tauri::command]
+
 async fn preview_geometry_transform(
     params: GeometryParams,
     js_adjustments: serde_json::Value,
     show_lines: bool,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<String, String> {
     let (loaded_image_path, is_raw) = {
         let guard = state.original_image.lock().unwrap();
@@ -980,7 +1048,7 @@ async fn preview_geometry_transform(
             let all_adjustments =
                 get_all_adjustments_from_json(&temp_adjustments, is_raw, tm_override);
             let lut_path = temp_adjustments["lutPath"].as_str();
-            let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+            let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
             let mask_bitmaps = Vec::new();
 
             let processed_base = process_and_get_dynamic_image(
@@ -1099,7 +1167,7 @@ async fn preview_geometry_transform(
 }
 
 pub fn get_full_image_for_processing(
-    state: &tauri::State<AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<(DynamicImage, bool), String> {
     let original_image_lock = state.original_image.lock().unwrap();
     let loaded_image = original_image_lock
@@ -1111,11 +1179,11 @@ pub fn get_full_image_for_processing(
     ))
 }
 
-#[tauri::command]
+
 fn generate_preset_preview(
     js_adjustments: serde_json::Value,
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<Response, String> {
     let context = get_or_init_gpu_context(&state, &app_handle)?;
 
@@ -1131,7 +1199,7 @@ fn generate_preset_preview(
     const PRESET_PREVIEW_DIM: u32 = 400;
 
     let (preview_image, scale_for_gpu, unscaled_crop_offset) =
-        generate_transformed_preview(&state, &loaded_image, &js_adjustments, PRESET_PREVIEW_DIM)?;
+        generate_transformed_preview(state.clone(), &loaded_image, &js_adjustments, PRESET_PREVIEW_DIM)?;
 
     let (img_w, img_h) = preview_image.dimensions();
 
@@ -1163,7 +1231,7 @@ fn generate_preset_preview(
     let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
     let all_adjustments = get_all_adjustments_from_json(&js_adjustments, is_raw, tm_override);
     let lut_path = js_adjustments["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+    let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
 
     let processed_image = process_and_get_dynamic_image(
         &context,
@@ -1185,10 +1253,10 @@ fn generate_preset_preview(
         .write_with_encoder(JpegEncoder::new_with_quality(&mut buf, 80))
         .map_err(|e| e.to_string())?;
 
-    Ok(Response::new(buf.into_inner()))
+    Ok(crate::Response::new(buf.into_inner().into()))
 }
 
-#[tauri::command]
+
 async fn fetch_community_presets() -> Result<Vec<CommunityPreset>, String> {
     let client = reqwest::Client::new();
     let url = "https://raw.githubusercontent.com/CyberTimon/RapidRAW-Presets/main/manifest.json";
@@ -1212,12 +1280,12 @@ async fn fetch_community_presets() -> Result<Vec<CommunityPreset>, String> {
     Ok(presets)
 }
 
-#[tauri::command]
+
 async fn generate_all_community_previews(
     image_paths: Vec<String>,
     presets: Vec<CommunityPreset>,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<HashMap<String, Vec<u8>>, String> {
     let context = get_or_init_gpu_context(&state, &app_handle)?;
     let mut results: HashMap<String, Vec<u8>> = HashMap::new();
@@ -1312,7 +1380,7 @@ async fn generate_all_community_previews(
             let all_adjustments =
                 get_all_adjustments_from_json(&scaled_adjustments, *is_raw, tm_override);
             let lut_path = js_adjustments["lutPath"].as_str();
-            let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+            let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
 
             let unique_hash = preset_hash.wrapping_add(i as u64);
 
@@ -1388,7 +1456,7 @@ async fn generate_all_community_previews(
     Ok(results)
 }
 
-#[tauri::command]
+
 async fn save_temp_file(bytes: Vec<u8>) -> Result<String, String> {
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
     temp_file.write_all(&bytes).map_err(|e| e.to_string())?;
@@ -1396,11 +1464,34 @@ async fn save_temp_file(bytes: Vec<u8>) -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+async fn save_svg_to_directory(directory: String, filename: String, svg_text: String) -> Result<String, String> {
+    use std::path::Path;
+    
+    let dir_path = Path::new(&directory);
+    if !dir_path.exists() {
+        return Err(format!("Directory does not exist: {}", directory));
+    }
+    
+    let file_path = dir_path.join(&filename);
+    std::fs::write(&file_path, svg_text.as_bytes()).map_err(|e| e.to_string())?;
+    
+    Ok(file_path.to_string_lossy().replace('\\', "/"))
+}
+
+async fn fetch_svg_content(url: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("Failed to fetch URL: {}", res.status()));
+    }
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
 async fn merge_hdr(
     paths: Vec<String>,
-    app_handle: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
+    app_handle: crate::DummyAppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<(), String> {
     if paths.len() < 2 {
         return Err("Please select at least two images to merge.".to_string());
@@ -1505,10 +1596,10 @@ async fn merge_hdr(
     Ok(())
 }
 
-#[tauri::command]
+
 async fn save_hdr(
     first_path_str: String,
-    state: tauri::State<'_, AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<String, String> {
     let hdr_image = state.hdr_result.lock().unwrap().take().ok_or_else(|| {
         "No hdr image found in memory to save. It might have already been saved.".to_string()
@@ -1551,7 +1642,7 @@ async fn save_hdr(
     Ok(output_path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+
 async fn save_collage(base64_data: String, first_path_str: String) -> Result<String, String> {
     let data_url_prefix = "data:image/png;base64,";
     if !base64_data.starts_with(data_url_prefix) {
@@ -1581,12 +1672,12 @@ async fn save_collage(base64_data: String, first_path_str: String) -> Result<Str
     Ok(output_path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+
 fn generate_preview_for_path(
     path: String,
     js_adjustments: Value,
-    state: tauri::State<AppState>,
-    app_handle: tauri::AppHandle,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
+    app_handle: crate::DummyAppHandle,
 ) -> Result<Response, String> {
     let context = get_or_init_gpu_context(&state, &app_handle)?;
     let (source_path, _) = parse_virtual_path(&path);
@@ -1649,7 +1740,7 @@ fn generate_preview_for_path(
     let tm_override = resolve_tonemapper_override(&settings, is_raw);
     let all_adjustments = get_all_adjustments_from_json(&js_adjustments, is_raw, tm_override);
     let lut_path = js_adjustments["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| get_or_load_lut(&state, p).ok());
+    let lut = lut_path.and_then(|p| get_or_load_lut(state.clone(), p).ok());
     let unique_hash = calculate_full_job_hash(&source_path_str, &js_adjustments);
     let final_image = process_and_get_dynamic_image(
         &context,
@@ -1672,13 +1763,13 @@ fn generate_preview_for_path(
         .encode_rgb(&rgb_pixels, width, height)
         .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
-    Ok(Response::new(bytes))
+    Ok(crate::Response::new(bytes.into()))
 }
 
-#[tauri::command]
+
 async fn load_and_parse_lut(
     path: String,
-    state: tauri::State<'_, AppState>,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<LutParseResult, String> {
     let lut = lut_processing::parse_lut_file(&path).map_err(|e| e.to_string())?;
     let lut_size = lut.size;
@@ -1689,7 +1780,7 @@ async fn load_and_parse_lut(
     Ok(LutParseResult { size: lut_size })
 }
 
-fn setup_logging(app_handle: &tauri::AppHandle) {
+fn setup_logging(app_handle: &crate::DummyAppHandle) {
     let log_dir = match app_handle.path().app_log_dir() {
         Ok(dir) => dir,
         Err(e) => {
@@ -1760,14 +1851,14 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
     );
 }
 
-#[tauri::command]
-fn get_log_file_path(app_handle: tauri::AppHandle) -> Result<String, String> {
+
+fn get_log_file_path(app_handle: crate::DummyAppHandle) -> Result<String, String> {
     let log_dir = app_handle.path().app_log_dir().map_err(|e| e.to_string())?;
     let log_file_path = log_dir.join("app.log");
     Ok(log_file_path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+
 fn frontend_log(level: String, message: String) -> Result<(), String> {
     let trimmed = message.trim();
     if trimmed.is_empty() {
@@ -1793,7 +1884,7 @@ fn frontend_log(level: String, message: String) -> Result<(), String> {
     Ok(())
 }
 
-fn handle_file_open(app_handle: &tauri::AppHandle, path: PathBuf) {
+fn handle_file_open(app_handle: &crate::DummyAppHandle, path: PathBuf) {
     if let Some(path_str) = path.to_str()
         && let Err(e) = app_handle.emit("open-with-file", path_str)
     {
@@ -1801,11 +1892,11 @@ fn handle_file_open(app_handle: &tauri::AppHandle, path: PathBuf) {
     }
 }
 
-#[tauri::command]
+
 fn frontend_ready(
-    app_handle: tauri::AppHandle,
-    window: tauri::Window,
-    state: tauri::State<AppState>,
+    app_handle: crate::DummyAppHandle,
+    window: crate::DummyWindow,
+    state: axum::extract::State<std::sync::Arc<AppState>>,
 ) -> Result<(), String> {
     let is_first_run = !state
         .window_setup_complete
@@ -1833,7 +1924,6 @@ fn frontend_ready(
                 if (should_maximize || should_fullscreen)
                     && let Some(monitor) = window
                         .current_monitor()
-                        .ok()
                         .flatten()
                         .or_else(|| window.primary_monitor().ok().flatten())
                         .or_else(|| {
@@ -1851,11 +1941,8 @@ fn frontend_ready(
                     let center_y =
                         monitor_pos.y + (monitor_size.height as i32 - default_height) / 2;
 
-                    let _ = window.set_size(tauri::PhysicalSize::new(
-                        default_width as u32,
-                        default_height as u32,
-                    ));
-                    let _ = window.set_position(tauri::PhysicalPosition::new(center_x, center_y));
+                    let _ = window.set_size(());
+                    let _ = window.set_position(());
                 }
             }
         }
@@ -1886,47 +1973,25 @@ fn frontend_ready(
     Ok(())
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+
+/*
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            log::info!(
-                "New instance launched with args: {:?}. Focusing main window.",
-                argv
-            );
-            if let Some(window) = app.get_webview_window("main") {
-                if let Err(e) = window.unminimize() {
-                    log::error!("Failed to unminimize window: {}", e);
-                }
-                if let Err(e) = window.set_focus() {
-                    log::error!("Failed to set focus on window: {}", e);
-                }
-            }
-
-            if argv.len() > 1 {
-                let path_str = &argv[1];
-                if let Err(e) = app.emit("open-with-file", path_str) {
-                    log::error!(
-                        "Failed to emit open-with-file from single-instance handler: {}",
-                        e
-                    );
-                }
-            }
-        }));
+        
     }
 
     builder
-        .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_shell::init())
+        
+        
+        
+        
+        
         .plugin(PinchZoomDisablePlugin)
-        .on_window_event(|window, event| if let tauri::WindowEvent::Resized(size) = event {
-            let state = window.state::<AppState>();
+        .on_window_event(|window, event| if let crate::DummyWindowEvent::Resized(size) = event {
+            let state = window.state::<std::sync::Arc<crate::app_state::AppState>>();
             if let Some(ctx) = state.gpu_context.lock().unwrap().as_ref()
                 && let Ok(mut display_lock) = ctx.display.try_lock()
                     && let Some(display) = display_lock.as_mut() {
@@ -1940,7 +2005,7 @@ pub fn run() {
             #[cfg(any(windows, target_os = "linux"))]
             {
                 if let Some(arg) = std::env::args().nth(1) {
-                     let state = app.state::<AppState>();
+                     let state = app.state::<std::sync::Arc<crate::app_state::AppState>>();
                      log::info!("Windows/Linux initial open: Storing path {} for later.", &arg);
                      *state.initial_file_path.lock().unwrap() = Some(arg);
                 }
@@ -1951,14 +2016,14 @@ pub fn run() {
             let crash_flag_path = config_dir.join(".gpu_init_crash_flag");
 
             {
-                let state = app.state::<AppState>();
+                let state = app.state::<std::sync::Arc<crate::app_state::AppState>>();
                 *state.gpu_crash_flag_path.lock().unwrap() = Some(crash_flag_path.clone());
             }
 
             let mut settings: AppSettings = load_settings(app_handle.clone()).unwrap_or_default();
 
             {
-                let state = app.state::<AppState>();
+                let state = app.state::<std::sync::Arc<crate::app_state::AppState>>();
                 let cache_size = settings.image_cache_size.unwrap_or(5) as usize;
                 state.decoded_image_cache.lock().unwrap().set_capacity(cache_size);
             }
@@ -1971,7 +2036,7 @@ pub fn run() {
             }
 
             let lens_db = lens_correction::load_lensfun_db(&app_handle);
-            let state = app.state::<AppState>();
+            let state = app.state::<std::sync::Arc<crate::app_state::AppState>>();
             *state.lens_db.lock().unwrap() = Some(Arc::new(lens_db));
 
             unsafe {
@@ -2060,7 +2125,7 @@ pub fn run() {
 
             #[cfg(not(target_os = "android"))]
             {
-                let app_state = app.state::<AppState>();
+                let app_state = app.state::<std::sync::Arc<crate::app_state::AppState>>();
                 if let Err(error) = get_or_init_gpu_context(&app_state, app.handle()) {
                     log::warn!(
                         "GPU pre-initialization failed (editing and thumbnails may be degraded): {}",
@@ -2074,10 +2139,10 @@ pub fn run() {
                         if let Ok(state) = serde_json::from_str::<WindowState>(&contents) {
                             if state.width >= 800  && state.height >= 600 {
                                 let _ = window.set_size(tauri::Size::Physical(
-                                    tauri::PhysicalSize::new(state.width, state.height),
+                                    DummyPhysical(state.width, state.height),
                                 ));
                                 let _ = window.set_position(tauri::Position::Physical(
-                                    tauri::PhysicalPosition::new(state.x, state.y),
+                                    DummyPhysical(state.x, state.y),
                                 ));
                             } else {
                                 log::warn!(
@@ -2139,7 +2204,7 @@ pub fn run() {
                 let pending_state_for_handler = pending_window_state.clone();
 
                 window.on_window_event(move |event| match event {
-                    tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                    crate::DummyWindowEvent::Resized(_) | crate::DummyWindowEvent::Moved(_) => {
                         #[cfg(any(windows, target_os = "linux"))]
                         let maximized = window_for_handler.is_maximized().unwrap_or(false);
                         #[cfg(not(any(windows, target_os = "linux")))]
@@ -2327,7 +2392,7 @@ pub fn run() {
                     if let Some(url) = urls.first() {
                         if let Ok(path) = url.to_file_path() {
                             if let Some(path_str) = path.to_str() {
-                                let state = app_handle.state::<AppState>();
+                                let state = app_handle.state::<std::sync::Arc<crate::app_state::AppState>>();
                                 *state.initial_file_path.lock().unwrap() = Some(path_str.to_string());
                                 log::info!("macOS initial open: Stored path {} for later.", path_str);
                             }
@@ -2354,3 +2419,6 @@ pub fn run() {
             }
         });
 }
+
+*/
+pub mod api_router;

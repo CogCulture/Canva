@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import debounce from 'lodash.debounce';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
@@ -427,7 +427,9 @@ export function useImageProcessing(
         currentResRef.current = targetRes;
 
         applyAdjustments(adjustments, false, targetRes);
-        debouncedSave(selectedImage.path, adjustments);
+        if (!selectedImage.path.startsWith('data:')) {
+          debouncedSave(selectedImage.path, adjustments);
+        }
 
         const otherPaths = multiSelectedPaths.filter((p) => p !== selectedImage.path);
         if (otherPaths.length > 0) {

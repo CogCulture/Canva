@@ -508,21 +508,26 @@ You have two options to run RapidRAW:
 - On Debian-based distributions, install the `.deb` package from the [**Releases**](https://github.com/CyberTimon/RapidRAW/releases) page.
 - On Arch-based distributions, use the [`rapidraw-bin`](https://aur.archlinux.org/packages/rapidraw-bin) package from the AUR.
 
-**2. Build from Source**
+**2. Build and Run from Source (Web App)**
 
-If you want to build the project yourself, you'll need to have [Rust](https://www.rust-lang.org/tools/install) and [Node.js](https://nodejs.org/) installed.
+If you want to run the project locally as a web application, you'll need to have [Rust](https://www.rust-lang.org/tools/install) and [Node.js](https://nodejs.org/) installed.
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/CyberTimon/RapidRAW.git
 cd RapidRAW
 
-# 2. Install frontend dependencies
+# 2. Install dependencies
 npm install
 
-# 3. Build and run the application
-npm start
+# 3. Start the Rust backend (Terminal 1)
+npm run backend
+
+# 4. Start the Vite frontend dev server (Terminal 2)
+npm run dev
 ```
+
+The frontend will run at `http://localhost:1420` and automatically proxy API calls to the Rust backend running on `http://localhost:3000`.
 
 ## System Requirements
 

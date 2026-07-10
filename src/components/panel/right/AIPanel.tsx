@@ -88,7 +88,7 @@ const SUB_MASK_CONFIG: any = {
     parameters: [{ key: 'feather', min: 0, max: 100, step: 1, multiplier: 100, defaultValue: 50 }],
   },
   [Mask.Brush]: { showBrushTools: true },
-  [Mask.Linear]: { parameters: [] },
+  [Mask.Rectangle]: { parameters: [] },
   [Mask.AiSubject]: {
     parameters: [
       { key: 'grow', min: -100, max: 100, step: 1, defaultValue: 50 },
@@ -476,17 +476,18 @@ export default function AIPanel() {
       });
     }
 
-    if (type === Mask.Linear && subMask.parameters) {
-      subMask.parameters.range = Math.min(imgW, imgH) * 0.1;
+    if (type === Mask.Rectangle && subMask.parameters) {
+      // Rectangle uses previewBox draw flow (like AiSubject), no isInitialDraw needed
+      subMask.parameters.startX = 0;
+      subMask.parameters.startY = 0;
+      subMask.parameters.endX = 0;
+      subMask.parameters.endY = 0;
+      subMask.parameters.feather = 0;
     }
 
-    if (type === Mask.Linear || type === Mask.Radial) {
+    if (type === Mask.Radial) {
       if (!subMask.parameters) subMask.parameters = {};
       subMask.parameters.isInitialDraw = true;
-      subMask.parameters.startX = -10000;
-      subMask.parameters.startY = -10000;
-      subMask.parameters.endX = -10000;
-      subMask.parameters.endY = -10000;
       subMask.parameters.centerX = -10000;
       subMask.parameters.centerY = -10000;
       subMask.parameters.radiusX = 0;

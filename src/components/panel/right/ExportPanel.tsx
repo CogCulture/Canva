@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { save, open } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { save, open } from '../../../utils/tauri-mocks';
+import { invoke } from '../../../utils/tauri-mocks';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -479,28 +479,17 @@ export default function ExportPanel({
         const stem = originalFilename.substring(0, originalFilename.lastIndexOf('.')) || originalFilename;
         const suggestedName = finalFilenameTemplate.replace('{original_filename}', stem);
         const outputFileName = `${suggestedName}.${selectedFormat.extensions[0]}`;
+        
+        const originalDir = pathsToExport[0].substring(0, Math.max(pathsToExport[0].lastIndexOf('/'), pathsToExport[0].lastIndexOf('\\')));
 
         outputFolderOrFile = isAndroid
           ? outputFileName
-          : ((await save({
-              title: t('export.dialog.saveEditedImageTitle'),
-              defaultPath: lastExportPath ? `${lastExportPath}/${outputFileName}` : outputFileName,
-              filters: [
-                { name: selectedFormat.name, extensions: selectedFormat.extensions },
-                ...FILE_FORMATS.filter((f: FileFormat) => f.id !== fileFormat).map((f: FileFormat) => ({
-                  name: f.name,
-                  extensions: f.extensions,
-                })),
-              ],
-            })) as string);
+          : (lastExportPath ? `${lastExportPath}/${outputFileName}` : `${originalDir}/${outputFileName}`);
       } else {
+        const originalDir = pathsToExport[0].substring(0, Math.max(pathsToExport[0].lastIndexOf('/'), pathsToExport[0].lastIndexOf('\\')));
         outputFolderOrFile = isAndroid
           ? ''
-          : ((await open({
-              title: t('export.dialog.selectFolderTitle', { count: numImages }),
-              directory: true,
-              defaultPath: lastExportPath ?? undefined,
-            })) as string);
+          : (lastExportPath ?? originalDir);
       }
 
       if (isAndroid || outputFolderOrFile) {

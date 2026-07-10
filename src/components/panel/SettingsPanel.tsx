@@ -19,9 +19,9 @@ import {
   Mouse,
   Touchpad,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { invoke } from '../../utils/tauri-mocks';
+import { getCurrentWindow } from '../../utils/tauri-mocks';
+import { relaunch } from '../../utils/tauri-mocks';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Show, SignIn, useUser, useAuth, useClerk } from '@clerk/react';
@@ -44,7 +44,7 @@ import {
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useOsPlatform } from '../../hooks/useOsPlatform';
-import { open } from '@tauri-apps/plugin-shell';
+import { open } from '../../utils/tauri-mocks';
 
 interface ConfirmModalState {
   confirmText: string;

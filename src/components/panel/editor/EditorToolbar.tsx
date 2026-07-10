@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Waves } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Waves, LayoutTemplate } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ interface EditorToolbarProps {
   adjustmentsHistory: any[];
   adjustmentsHistoryIndex: number;
   goToAdjustmentsHistoryIndex(index: number): void;
+  onMoveToCanvas?(): void;
 }
 
 const EditorToolbar = memo(
@@ -45,6 +46,7 @@ const EditorToolbar = memo(
     adjustmentsHistory,
     adjustmentsHistoryIndex,
     goToAdjustmentsHistoryIndex,
+    onMoveToCanvas,
   }: EditorToolbarProps) => {
     const { t } = useTranslation();
     const isAnyLoading = isLoading;
@@ -333,14 +335,7 @@ const EditorToolbar = memo(
     return (
       <div className="relative shrink-0 flex items-center justify-between px-4 h-14 gap-4 z-40">
         <div className="flex items-center gap-2 shrink-0 z-40">
-          <button
-            className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors shrink-0"
-            onClick={onBackToLibrary}
-            onKeyDown={handleButtonKeyDown}
-            data-tooltip={t('editor.toolbar.tooltips.backToLibrary')}
-          >
-            <ArrowLeft size={20} />
-          </button>
+
 
           <div className="hidden 2xl:flex items-center gap-2" aria-hidden="true">
             <div className="p-2 invisible pointer-events-none">

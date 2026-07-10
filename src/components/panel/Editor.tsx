@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, use
 import { Crop, PercentCrop } from 'react-image-crop';
 import { Loader2 } from 'lucide-react';
 import clsx from 'clsx';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../utils/tauri-mocks';
 import { toast } from 'react-toastify';
 import debounce from 'lodash.debounce';
 
@@ -73,9 +73,10 @@ interface EditorProps {
   onBackToLibrary(): void;
   onContextMenu(event: any): void;
   transformWrapperRef: any;
+  onMoveToCanvas?(): void;
 }
 
-export default function Editor({ onBackToLibrary, onContextMenu, transformWrapperRef }: EditorProps) {
+export default function Editor({ onBackToLibrary, onContextMenu, transformWrapperRef, onMoveToCanvas }: EditorProps) {
   const appSettings = useSettingsStore((s) => s.appSettings);
   const osPlatform = useSettingsStore((s) => s.osPlatform);
   const isFullScreen = useUIStore((s) => s.isFullScreen);
@@ -601,6 +602,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, transformWrappe
       (activeSubMask?.type === Mask.Brush ||
         activeSubMask?.type === Mask.Flow ||
         activeSubMask?.type === Mask.AiSubject ||
+        activeSubMask?.type === Mask.Rectangle ||
         activeSubMask?.type === Mask.Color ||
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
@@ -608,6 +610,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, transformWrappe
       (activeSubMask?.type === Mask.Brush ||
         activeSubMask?.type === Mask.Flow ||
         activeSubMask?.type === Mask.AiSubject ||
+        activeSubMask?.type === Mask.Rectangle ||
         activeSubMask?.type === Mask.QuickEraser ||
         activeSubMask?.type === Mask.Color ||
         activeSubMask?.type === Mask.Luminance ||
@@ -1924,7 +1927,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, transformWrappe
     }
   }
 
-  const isWgpuActive = appSettings?.useWgpuRenderer !== false && hasRenderedFirstFrame;
+  const isWgpuActive = false;
 
   return (
     <div
@@ -1961,6 +1964,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, transformWrappe
           adjustmentsHistory={adjustmentsHistory}
           adjustmentsHistoryIndex={adjustmentsHistoryIndex}
           goToAdjustmentsHistoryIndex={goToHistoryIndex}
+          onMoveToCanvas={onMoveToCanvas}
         />
       </div>
 

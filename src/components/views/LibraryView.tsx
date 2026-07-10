@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 
 import CommunityPage from '../panel/CommunityPage';
+import UnDrawLibrary from '../panel/UnDrawLibrary';
 import MainLibrary from '../panel/MainLibrary';
 import BottomBar from '../panel/BottomBar';
 
@@ -124,6 +125,10 @@ export default function LibraryView({
             imageList={sortedImageList}
             currentFolderPath={currentFolderPath}
           />
+        ) : activeView === 'illustrations' ? (
+          <UnDrawLibrary
+            onBackToLibrary={() => setUI({ activeView: 'library' })}
+          />
         ) : (
           <MainLibrary
             activePath={libraryActivePath}
@@ -161,6 +166,7 @@ export default function LibraryView({
             thumbnailProgress={thumbnailProgress}
             thumbnailSize={thumbnailSize}
             onNavigateToCommunity={() => setUI({ activeView: 'community' })}
+            onNavigateToIllustrations={() => setUI({ activeView: 'illustrations' })}
           />
         )}
         {rootPaths && rootPaths.length > 0 && (

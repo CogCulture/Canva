@@ -1,6 +1,7 @@
 import { useRef, useCallback, useMemo, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../utils/tauri-mocks';
 import debounce from 'lodash.debounce';
+import { useProcessStore } from '../store/useProcessStore';
 
 export function useThumbnails() {
   const generatedRef = useRef<Set<string>>(new Set());
@@ -18,8 +19,16 @@ export function useThumbnails() {
             [pathsToSend[i], pathsToSend[j]] = [pathsToSend[j], pathsToSend[i]];
           }
 
-          invoke('update_thumbnail_queue', { paths: pathsToSend }).catch((err) => {
-            console.error('Failed to update thumbnail queue:', err);
+          pathsToSend.forEach(async (path) => {
+            try {
+              const data = await invoke<string>('get_thumbnail_for_path', { path });
+              // We need to update useProcessStore directly since events don't work
+              useProcessStore.getState().setProcess((state) => ({
+                thumbnails: { ...state.thumbnails, [path]: data }
+              }));
+            } catch (err) {
+              console.error('Failed to get thumbnail for path:', path, err);
+            }
           });
 
           pendingQueueRef.current.clear();
