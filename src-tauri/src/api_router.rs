@@ -20,7 +20,7 @@ pub struct InvokePayload {
     pub args: Option<Value>,
 }
 
-pub async fn handle_invoke(State(state): State<Arc<AppState>>, Json(payload): Json<InvokePayload>) -> Result<axum::response::Response, String> {
+pub async fn handle_invoke(State(state): State<Arc<AppState>>, Json(payload): Json<InvokePayload>) -> Result<axum::response::Response, AppError> {
     match payload.command.as_str() {
         "load_image" => {
             let args_val = payload.args.as_ref().ok_or("Missing args for load_image")?;
@@ -871,7 +871,7 @@ pub async fn handle_invoke(State(state): State<Arc<AppState>>, Json(payload): Js
     }
 }
 
-async fn serve_static_file(Query(params): Query<std::collections::HashMap<String, String>>) -> Result<axum::response::Response, String> {
+async fn serve_static_file(Query(params): Query<std::collections::HashMap<String, String>>) -> Result<axum::response::Response, AppError> {
     let path = params.get("path").ok_or("Missing path parameter".to_string())?;
     let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file '{}': {}", path, e))?;
     // Detect content type from extension
@@ -892,7 +892,7 @@ async fn serve_static_file(Query(params): Query<std::collections::HashMap<String
     Ok(response)
 }
 
-async fn handle_upload(mut multipart: axum::extract::Multipart) -> Result<axum::response::Response, String> {
+async fn handle_upload(mut multipart: axum::extract::Multipart) -> Result<axum::response::Response, AppError> {
     let mut temp_path = String::new();
     while let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
         let file_name = field.file_name().unwrap_or("unknown").to_string();
@@ -915,7 +915,7 @@ async fn handle_upload(mut multipart: axum::extract::Multipart) -> Result<axum::
     Ok(axum::response::IntoResponse::into_response(Json(json_res)))
 }
 
-async fn handle_download(Query(params): Query<std::collections::HashMap<String, String>>) -> Result<axum::response::Response, String> {
+async fn handle_download(Query(params): Query<std::collections::HashMap<String, String>>) -> Result<axum::response::Response, AppError> {
     let path = params.get("path").ok_or("Missing path parameter")?;
     
     // Basic security check: ensure it's from /tmp/ to prevent arbitrary file reading
