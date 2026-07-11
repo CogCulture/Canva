@@ -10,6 +10,7 @@ import { Adjustments } from '../../utils/adjustments';
 import clsx from 'clsx';
 import Text from '../ui/Text';
 import { TextColors, TextVariants } from '../../types/typography';
+import { useEditorStore } from '../../store/useEditorStore';
 
 interface GeometryParams {
   distortion: number;
@@ -223,6 +224,7 @@ export default function TransformModal({ isOpen, onClose, onApply, currentAdjust
         };
 
         const result: string = await invoke('preview_geometry_transform', {
+          path: useEditorStore.getState().selectedImage?.path,
           params: fullParams,
           jsAdjustments: currentAdjustments,
           showLines: linesEnabled,
@@ -315,6 +317,7 @@ export default function TransformModal({ isOpen, onClose, onApply, currentAdjust
         lens_vignette_enabled: currentAdjustments.lensVignetteEnabled ?? true,
       };
       const result: string = await invoke('preview_geometry_transform', {
+        path: useEditorStore.getState().selectedImage?.path,
         params: fullParams,
         jsAdjustments: currentAdjustments,
         showLines: false,

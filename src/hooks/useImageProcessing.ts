@@ -172,6 +172,7 @@ export function useImageProcessing(
 
       try {
         const buffer: ArrayBuffer = await invoke(Invokes.ApplyAdjustments, {
+          path: currentPath,
           jsAdjustments: payload,
           isInteractive: dragging,
           targetResolution: targetRes || null,
@@ -304,11 +305,14 @@ export function useImageProcessing(
   const generateUncroppedPreview = useCallback(
     (currentAdjustments: Adjustments) => {
       if (!selectedImage?.isReady) return;
-      invoke(Invokes.GenerateUncroppedPreview, { jsAdjustments: currentAdjustments }).catch((err) =>
+      invoke(Invokes.GenerateUncroppedPreview, { 
+        path: selectedImage.path,
+        jsAdjustments: currentAdjustments 
+      }).catch((err) =>
         console.error('Failed to generate uncropped preview:', err),
       );
     },
-    [selectedImage?.isReady],
+    [selectedImage?.isReady, selectedImage?.path],
   );
 
   const calculateTargetRes = useCallback(() => {

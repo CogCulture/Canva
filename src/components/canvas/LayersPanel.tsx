@@ -300,7 +300,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
                     openImageEdit(layer.id, filePath);
                   } else {
                     // Image was uploaded — use client-side editor with data URL
-                    const dataUrl = obj._originalDataUrl ?? obj._sourceDataUrl ?? (() => {
+                    const dataUrl = obj._originalDataUrl ?? obj._sourceDataUrl ?? obj._element?.src ?? obj._originalElement?.src ?? (() => {
                       const tempCanvas = document.createElement('canvas');
                       const el = obj._element || obj._originalElement;
                       if (!el) return null;
@@ -316,7 +316,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
                       
                       let finalPath = dataUrl;
                       let loadingToastId = null;
-                      if (dataUrl.startsWith('data:')) {
+                      if (dataUrl.startsWith('data:') || dataUrl.startsWith('blob:') || dataUrl.startsWith('http')) {
                         loadingToastId = toast.loading('Preparing image for editing...', { autoClose: false });
                         try {
                           finalPath = await uploadDataUrlToCloud(dataUrl);

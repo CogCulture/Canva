@@ -23,6 +23,7 @@ import Dropdown from '../ui/Dropdown';
 import Switch from '../ui/Switch';
 import throttle from 'lodash.throttle';
 import { Adjustments } from '../../utils/adjustments';
+import { useEditorStore } from '../../store/useEditorStore';
 import { SelectedImage } from '../ui/AppProperties';
 import clsx from 'clsx';
 import Text from '../ui/Text';
@@ -282,13 +283,14 @@ export default function LensCorrectionModal({
         };
 
         const result: string = await invoke('preview_geometry_transform', {
+          path: useEditorStore.getState().selectedImage?.path,
           params: fullParams,
           jsAdjustments: currentAdjustments,
           showLines: false,
         });
         setPreviewUrl(result);
       } catch (e) {
-        console.error('Lens correction preview failed', e);
+        console.error('Preview transform failed', e);
       }
     }, 50),
     [currentAdjustments],
@@ -522,6 +524,7 @@ export default function LensCorrectionModal({
       };
 
       invoke('preview_geometry_transform', {
+        path: useEditorStore.getState().selectedImage?.path,
         params: fullParams,
         jsAdjustments: currentAdjustments,
         showLines: false,

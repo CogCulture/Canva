@@ -21,6 +21,23 @@ pub struct InvokePayload {
 }
 
 pub async fn handle_invoke(State(state): State<Arc<AppState>>, Json(payload): Json<InvokePayload>) -> Result<axum::response::Response, AppError> {
+    if state.original_image.lock().unwrap().is_none() {
+        let is_image_command = payload.command == "apply_adjustments" || payload.command == "generate_uncropped_preview" || payload.command == "preview_geometry_transform";
+        if is_image_command {
+            if let Some(args_val) = &payload.args {
+                if let Some(path_val) = args_val.get("path") {
+                    if let Ok(path) = serde_json::from_value::<String>(path_val.clone()) {
+                        let _ = crate::image_loader::load_image(
+                            path, 
+                            axum::extract::State(state.clone()), 
+                            crate::DummyAppHandle { state: Some(state.clone()) }
+                        ).await;
+                    }
+                }
+            }
+        }
+    }
+
     match payload.command.as_str() {
         "load_image" => {
             let args_val = payload.args.as_ref().ok_or("Missing args for load_image")?;
