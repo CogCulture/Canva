@@ -13,6 +13,9 @@ use crate::file_management::ImportSettings;
 use crate::culling::CullingSettings;
 use crate::negative_conversion::NegativeConversionParams;
 
+// Type alias for handler errors — a plain String is returned as a 500 response body
+type AppError = String;
+
 
 #[derive(Deserialize)]
 pub struct InvokePayload {
