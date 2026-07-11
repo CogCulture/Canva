@@ -131,10 +131,16 @@ export async function relaunch() {
 }
 
 export async function uploadDataUrlToCloud(dataUrl: string): Promise<string> {
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
   const formData = new FormData();
-  formData.append('file', blob, 'image.png');
+  
+  if (dataUrl.startsWith('http')) {
+    formData.append('url', dataUrl);
+  } else {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    formData.append('file', blob, 'image.png');
+  }
+  
   const baseUrl = import.meta.env.VITE_API_URL || '';
   const uploadRes = await fetch(`${baseUrl}/api/upload`, {
     method: 'POST',
