@@ -917,34 +917,33 @@ async fn handle_upload(mut multipart: axum::extract::Multipart) -> Result<axum::
     while let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
         let field_name = field.name().unwrap_or("").to_string();
         
-        // Check if the frontend sent a direct URL to download
         if field_name == "url" {
+            // Frontend sent a remote URL — download it server-side to bypass CORS
             let url = field.text().await.map_err(|e| e.to_string())?;
             if url.starts_with("http") {
                 let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
                 let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-                
-                let ext = "png"; // Fallback extension
                 let uuid = uuid::Uuid::new_v4().to_string();
-                let path = format!("/tmp/rapidraw_upload_{}.{}", uuid, ext);
-                
+                let path = format!("/tmp/rapidraw_upload_{}.png", uuid);
                 std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
                 temp_path = path;
                 break;
             }
+            // url field was not http — fall through to next field
+        } else {
+            // Regular file upload
+            let file_name = field.file_name().unwrap_or("unknown").to_string();
+            let data = field.bytes().await.map_err(|e| e.to_string())?;
+            let ext = std::path::Path::new(&file_name)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("png");
+            let uuid = uuid::Uuid::new_v4().to_string();
+            let path = format!("/tmp/rapidraw_upload_{}.{}", uuid, ext);
+            std::fs::write(&path, data).map_err(|e| e.to_string())?;
+            temp_path = path;
+            break;
         }
-        
-        // Otherwise handle file upload
-        let file_name = field.file_name().unwrap_or("unknown").to_string();
-        let data = field.bytes().await.map_err(|e| e.to_string())?;
-        
-        let ext = std::path::Path::new(&file_name).extension().and_then(|e| e.to_str()).unwrap_or("raw");
-        let uuid = uuid::Uuid::new_v4().to_string();
-        let path = format!("/tmp/rapidraw_upload_{}.{}", uuid, ext);
-        
-        std::fs::write(&path, data).map_err(|e| e.to_string())?;
-        temp_path = path;
-        break; // Only handle the first file or url
     }
     
     if temp_path.is_empty() {
