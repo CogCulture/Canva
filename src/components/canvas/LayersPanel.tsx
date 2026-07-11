@@ -21,6 +21,8 @@ import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useEditorStore } from '../../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
 import { globalFabricCanvas, addImageToCanvas } from './ArtboardCanvas';
+import { toast } from 'react-toastify';
+import { uploadDataUrlToCloud } from '../../utils/tauri-mocks';
 
 
 function LayerRow({ layer }: { layer: CanvasLayer }) {
@@ -263,7 +265,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
           {layer.type === 'image' && (
             <div className="flex items-center gap-2">
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
                   const canvas = globalFabricCanvas;
                   if (!canvas) return;
@@ -311,12 +313,26 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
                     })();
                     if (dataUrl) {
                       if (!obj._originalDataUrl) obj._originalDataUrl = dataUrl;
+                      
+                      let finalPath = dataUrl;
+                      let loadingToastId = null;
+                      if (dataUrl.startsWith('data:')) {
+                        loadingToastId = toast.loading('Preparing image for editing...', { autoClose: false });
+                        try {
+                          finalPath = await uploadDataUrlToCloud(dataUrl);
+                          toast.update(loadingToastId, { render: 'Ready!', type: 'success', isLoading: false, autoClose: 1000 });
+                        } catch (err) {
+                          toast.update(loadingToastId, { render: `Failed to prepare image: ${err}`, type: 'error', isLoading: false, autoClose: 3000 });
+                          return;
+                        }
+                      }
+                      
                       const editorStore = useEditorStore.getState();
                       editorStore.resetHistory(prevAdjustments);
                       editorStore.setEditor({
                         adjustments: prevAdjustments,
                         selectedImage: {
-                          path: dataUrl,
+                          path: finalPath,
                           name: obj._layerName ?? 'Image',
                           thumbnailUrl: dataUrl,
                           isReady: false,
@@ -330,7 +346,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
                         uncroppedAdjustedPreviewUrl: dataUrl,
                         hasRenderedFirstFrame: false,
                       });
-                      openImageEdit(layer.id, dataUrl);
+                      openImageEdit(layer.id, finalPath);
                     }
                   }
                 }}

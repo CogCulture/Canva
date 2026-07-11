@@ -129,3 +129,18 @@ export async function homeDir() {
 export async function relaunch() {
   window.location.reload();
 }
+
+export async function uploadDataUrlToCloud(dataUrl: string): Promise<string> {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const formData = new FormData();
+  formData.append('file', blob, 'image.png');
+  const baseUrl = import.meta.env.VITE_API_URL || '';
+  const uploadRes = await fetch(`${baseUrl}/api/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!uploadRes.ok) throw new Error(await uploadRes.text());
+  const data = await uploadRes.json();
+  return data.path;
+}
