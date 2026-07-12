@@ -24,21 +24,37 @@ pub struct InvokePayload {
 }
 
 pub async fn handle_invoke(State(state): State<Arc<AppState>>, Json(payload): Json<InvokePayload>) -> Result<axum::response::Response, AppError> {
-    if state.original_image.lock().unwrap().is_none() {
+    let mut should_load = false;
+    let mut load_path = String::new();
+
+    {
         let is_image_command = payload.command == "apply_adjustments" || payload.command == "generate_uncropped_preview" || payload.command == "preview_geometry_transform";
         if is_image_command {
             if let Some(args_val) = &payload.args {
                 if let Some(path_val) = args_val.get("path") {
                     if let Ok(path) = serde_json::from_value::<String>(path_val.clone()) {
-                        let _ = crate::image_loader::load_image(
-                            path, 
-                            axum::extract::State(state.clone()), 
-                            crate::DummyAppHandle { state: Some(state.clone()) }
-                        ).await;
+                        let original_img_guard = state.original_image.lock().unwrap();
+                        if let Some(img) = original_img_guard.as_ref() {
+                            if img.path != path {
+                                should_load = true;
+                                load_path = path;
+                            }
+                        } else {
+                            should_load = true;
+                            load_path = path;
+                        }
                     }
                 }
             }
         }
+    }
+
+    if should_load {
+        let _ = crate::image_loader::load_image(
+            load_path, 
+            axum::extract::State(state.clone()), 
+            crate::DummyAppHandle { state: Some(state.clone()) }
+        ).await;
     }
 
     match payload.command.as_str() {

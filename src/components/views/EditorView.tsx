@@ -374,6 +374,8 @@ export default function EditorView({
 
             (newImg as any)._originalDataUrl = existingObj._originalDataUrl;
 
+            (newImg as any)._cloudPath = existingObj._cloudPath;
+
 
 
             // Store the edited preview and the adjustments for future re-edits
