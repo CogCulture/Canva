@@ -130,17 +130,54 @@ export async function relaunch() {
   window.location.reload();
 }
 
+/** Compress a data: or blob: URL to a JPEG blob (max 2048px, quality 0.85) to keep upload small. */
+async function compressToJpegBlob(dataUrl: string, maxDim = 2048, quality = 0.85): Promise<Blob> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+
+  let { naturalWidth: w, naturalHeight: h } = img;
+  if (w > maxDim || h > maxDim) {
+    if (w >= h) { h = Math.round((h / w) * maxDim); w = maxDim; }
+    else        { w = Math.round((w / h) * maxDim); h = maxDim; }
+  }
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w;
+  offscreen.height = h;
+  offscreen.getContext('2d')!.drawImage(img, 0, 0, w, h);
+  return new Promise<Blob>((resolve, reject) =>
+    offscreen.toBlob(
+      (b) => b ? resolve(b) : reject(new Error('toBlob returned null')),
+      'image/jpeg',
+      quality,
+    )
+  );
+}
+
 export async function uploadDataUrlToCloud(dataUrl: string): Promise<string> {
   const formData = new FormData();
-  
+
   if (dataUrl.startsWith('http')) {
+    // Remote URL — let the server fetch it (avoids CORS); no re-compression needed.
     formData.append('url', dataUrl);
   } else {
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
-    formData.append('file', blob, 'image.png');
+    // Local data: / blob: — compress to JPEG before sending to keep payload small
+    // (large PNGs trigger ERR_HTTP2_PROTOCOL_ERROR on Cloud Run).
+    try {
+      const jpeg = await compressToJpegBlob(dataUrl);
+      formData.append('file', jpeg, 'image.jpg');
+    } catch {
+      // Fallback: send raw blob without compression
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      formData.append('file', blob, 'image.png');
+    }
   }
-  
+
   const baseUrl = import.meta.env.VITE_API_URL || '';
   const uploadRes = await fetch(`${baseUrl}/api/upload`, {
     method: 'POST',

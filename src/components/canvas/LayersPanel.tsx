@@ -313,13 +313,19 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
                     })();
                     if (dataUrl) {
                       if (!obj._originalDataUrl) obj._originalDataUrl = dataUrl;
-                      
+
                       let finalPath = dataUrl;
                       let loadingToastId = null;
-                      if (dataUrl.startsWith('data:') || dataUrl.startsWith('blob:') || dataUrl.startsWith('http')) {
+
+                      // Reuse previously-uploaded cloud path to avoid uploading the same image twice
+                      if (obj._cloudPath) {
+                        finalPath = obj._cloudPath;
+                      } else if (dataUrl.startsWith('data:') || dataUrl.startsWith('blob:') || dataUrl.startsWith('http')) {
                         loadingToastId = toast.loading('Preparing image for editing...', { autoClose: false });
                         try {
                           finalPath = await uploadDataUrlToCloud(dataUrl);
+                          // Cache so the next "Edit Image" click skips the upload
+                          obj._cloudPath = finalPath;
                           toast.update(loadingToastId, { render: 'Ready!', type: 'success', isLoading: false, autoClose: 1000 });
                         } catch (err) {
                           toast.update(loadingToastId, { render: `Failed to prepare image: ${err}`, type: 'error', isLoading: false, autoClose: 3000 });
